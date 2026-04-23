@@ -24,7 +24,6 @@ const avatarMap: Record<string, string> = {
   Jeff: "/avatars/jeff.png",
   Hakim: "/avatars/hakim.png",
   
-  
 };
 
 const adminPassword = "1234";
