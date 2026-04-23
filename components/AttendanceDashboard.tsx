@@ -196,11 +196,24 @@ export default function AttendanceDashboard() {
             </p>
           </div>
 
-          <div className="topbar-badges">
-            <div className="pill">{selectedUser}</div>
-            <div className="pill">{todayDay}</div>
-          </div>
-        </div>
+         <div className="topbar-badges">
+  <div className="pill">{selectedUser}</div>
+  <div className="pill">{todayDay}</div>
+  <button
+    className="logout-btn"
+    onClick={() => {
+      setSelectedUser("");
+      setAdminInput("");
+      setAdminUnlocked(false);
+      setTab("dashboard");
+      setLeaveType("");
+      setLeaveNote("");
+      setAdminSelectedName("");
+    }}
+  >
+    Logout
+  </button>
+</div>
 
         <div className="stats-grid">
           <div className="stat-card">
