@@ -33,20 +33,27 @@ const avatarMap: Record<string, string> = {
 
 const adminPassword = "1234";
 
+type TabKey = "dashboard" | "daily" | "wfh";
+
+type LeaveRecord = {
+  name: string;
+  leaveType: string;
+  note: string;
+  date: string;
+};
+
 export default function AttendanceDashboard() {
   const [selectedUser, setSelectedUser] = useState("");
   const [adminInput, setAdminInput] = useState("");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [tab, setTab] = useState<"dashboard" | "daily" | "wfh">("dashboard");
+  const [tab, setTab] = useState<TabKey>("dashboard");
 
-  const [leaveRecords, setLeaveRecords] = useState<
-    { name: string; leaveType: string; note: string; date: string }[]
-  >([]);
-
+  const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
   const [leaveType, setLeaveType] = useState("");
   const [leaveNote, setLeaveNote] = useState("");
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
+  // kosong masa mula
   const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({});
 
   const todayDate = new Date().toISOString().split("T")[0];
@@ -75,7 +82,20 @@ export default function AttendanceDashboard() {
   );
 
   const handleAdminLogin = () => {
-    if (adminInput === adminPassword) setAdminUnlocked(true);
+    if (adminInput === adminPassword) {
+      setAdminUnlocked(true);
+      setTab("dashboard");
+    }
+  };
+
+  const handleLogout = () => {
+    setSelectedUser("");
+    setAdminInput("");
+    setAdminUnlocked(false);
+    setTab("dashboard");
+    setLeaveType("");
+    setLeaveNote("");
+    setAdminSelectedName("");
   };
 
   const handleSaveLeave = () => {
@@ -118,21 +138,49 @@ export default function AttendanceDashboard() {
     });
   };
 
-  const Avatar = ({ name, size = 44 }: { name: string; size?: number }) => (
-    <img
-      src={avatarMap[name]}
-      alt={name}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 12,
-        objectFit: "cover",
-        border: "1px solid #d9e2f2",
-        background: "#fff",
-        flexShrink: 0,
-      }}
-    />
-  );
+  const Avatar = ({ name, size = 44 }: { name: string; size?: number }) => {
+    const [broken, setBroken] = useState(false);
+
+    if (broken || !avatarMap[name]) {
+      return (
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: 12,
+            border: "1px solid #d9e2f2",
+            background: "#eef3fb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 12,
+            color: "#334155",
+            flexShrink: 0,
+          }}
+        >
+          {name.slice(0, 2).toUpperCase()}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={avatarMap[name]}
+        alt={name}
+        onError={() => setBroken(true)}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 12,
+          objectFit: "cover",
+          border: "1px solid #d9e2f2",
+          background: "#fff",
+          flexShrink: 0,
+        }}
+      />
+    );
+  };
 
   if (!enteredApp) {
     return (
@@ -196,24 +244,14 @@ export default function AttendanceDashboard() {
             </p>
           </div>
 
-         <div className="topbar-badges">
-  <div className="pill">{selectedUser}</div>
-  <div className="pill">{todayDay}</div>
-  <button
-    className="logout-btn"
-    onClick={() => {
-      setSelectedUser("");
-      setAdminInput("");
-      setAdminUnlocked(false);
-      setTab("dashboard");
-      setLeaveType("");
-      setLeaveNote("");
-      setAdminSelectedName("");
-    }}
-  >
-    Logout
-  </button>
-</div>
+          <div className="topbar-badges">
+            <div className="pill">{selectedUser}</div>
+            <div className="pill">{todayDay}</div>
+            <button className="logout-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        </div>
 
         <div className="stats-grid">
           <div className="stat-card">
@@ -513,6 +551,7 @@ function Styles() {
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+        align-items: center;
       }
 
       .pill {
@@ -523,6 +562,17 @@ function Styles() {
         font-size: 14px;
         color: #334155;
         font-weight: 700;
+      }
+
+      .logout-btn {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #b91c1c;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
       }
 
       .stats-grid {
