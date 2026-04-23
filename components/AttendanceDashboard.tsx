@@ -56,8 +56,11 @@ export default function AttendanceDashboard() {
   // kosong masa mula
   const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({});
 
-  const todayDate = new Date().toISOString().split("T")[0];
-  const todayDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  const displayDate = new Date().toLocaleDateString("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  });
 
   const isAdmin = selectedUser === "Admin" && adminUnlocked;
   const enteredApp = selectedUser !== "" && (selectedUser !== "Admin" || adminUnlocked);
@@ -246,7 +249,7 @@ export default function AttendanceDashboard() {
 
           <div className="topbar-badges">
             <div className="pill">{selectedUser}</div>
-            <div className="pill">{todayDay}</div>
+            <div className="pill">{todayDay}, {displayDate}</div>
             <button className="logout-btn" onClick={handleLogout}>
               Logout
             </button>
