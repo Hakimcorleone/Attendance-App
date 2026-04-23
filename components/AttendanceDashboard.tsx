@@ -47,14 +47,7 @@ export default function AttendanceDashboard() {
   const [leaveNote, setLeaveNote] = useState("");
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
-  const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({
-    Hakim: ["Thursday", "Friday"],
-    Nurshafiqah: ["Monday", "Thursday"],
-    Sheela: ["Tuesday"],
-    Syed: ["Tuesday"],
-    Razif: ["Wednesday", "Friday"],
-    Tamil: ["Thursday"],
-  });
+  const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({});
 
   const todayDate = new Date().toISOString().split("T")[0];
   const todayDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
