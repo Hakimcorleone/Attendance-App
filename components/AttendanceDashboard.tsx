@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const team = [
   "Zahran",
@@ -53,13 +53,30 @@ export default function AttendanceDashboard() {
   const [leaveNote, setLeaveNote] = useState("");
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
-  // kosong masa mula
   const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({});
 
-  const displayDate = new Date().toLocaleDateString("en-GB", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const todayDate = now.toISOString().split("T")[0];
+  const todayDay = now.toLocaleDateString("en-US", { weekday: "long" });
+  const displayDate = now.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const displayTime = now.toLocaleTimeString("en-MY", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
 
   const isAdmin = selectedUser === "Admin" && adminUnlocked;
@@ -249,7 +266,9 @@ export default function AttendanceDashboard() {
 
           <div className="topbar-badges">
             <div className="pill">{selectedUser}</div>
-            <div className="pill">{todayDay}, {displayDate}</div>
+            <div className="pill">{todayDay}</div>
+            <div className="pill">{displayDate}</div>
+            <div className="pill">{displayTime}</div>
             <button className="logout-btn" onClick={handleLogout}>
               Logout
             </button>
