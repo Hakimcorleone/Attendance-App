@@ -1,465 +1,441 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { formatDisplayDate, getDayName, getTodayDateValue } from '@/lib/date';
-import { LEAVE_TYPES, TEAM_MEMBERS, WEEKDAYS } from '@/lib/constants';
-import type { DailyRecord, TeamMember } from '@/lib/types';
+import { useMemo, useState } from "react";
 
-type BootstrapResponse = {
-  team: TeamMember[];
-  records: DailyRecord[];
+const team = [
+  "Zahran",
+  "Sheela",
+  "Nurshafiqah",
+  "Danish",
+  "Syed",
+  "Tamil",
+  "Jeff",
+  "Hakim",
+  "Razif",
+  "Amal",
+];
+
+const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const leaveTypes = ["AL", "MC", "EL", "RL", "PL", "ML", "HL", "CL", "Others"];
+
+const avatarMap: Record<string, string> = {
+  Zahran: "/avatars/zahran.png",
+  Sheela: "/avatars/sheela.png",
+  Nurshafiqah: "/avatars/nurshafiqah.png",
+  Danish: "/avatars/danish.png",
+  Syed: "/avatars/syed.png",
+  Tamil: "/avatars/tamil.png",
+  Jeff: "/avatars/jeff.png",
+  Hakim: "/avatars/hakim.png",
+  Razif: "/avatars/razif.png",
+  Amal: "/avatars/amal.png",
 };
 
-type TabKey = 'daily' | 'wfh' | 'dashboard';
+const adminPassword = "1234";
 
-export default function AttendanceDashboard() {
-  const [selectedUser, setSelectedUser] = useState('');
-  const [selectedDate, setSelectedDate] = useState(getTodayDateValue());
-  const [selectedTab, setSelectedTab] = useState<TabKey>('daily');
-  const [selectedName, setSelectedName] = useState('');
-  const [selectedLeaveType, setSelectedLeaveType] = useState('');
-  const [note, setNote] = useState('');
-  const [adminPin, setAdminPin] = useState('');
-  const [wfhSelectedName, setWfhSelectedName] = useState('');
-  const [team, setTeam] = useState<TeamMember[]>([]);
-  const [records, setRecords] = useState<DailyRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+export default function Page() {
+  const [selectedUser, setSelectedUser] = useState("");
+  const [adminInput, setAdminInput] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [tab, setTab] = useState<"dashboard" | "daily" | "wfh">("dashboard");
 
-  const isAdmin = selectedUser === 'Admin';
-  const currentDayName = getDayName(selectedDate);
+  const [leaveRecords, setLeaveRecords] = useState<
+    { name: string; leaveType: string; note: string; date: string }[]
+  >([]);
 
-  useEffect(() => {
-    void loadData(selectedDate);
-  }, [selectedDate]);
+  const [leaveType, setLeaveType] = useState("");
+  const [leaveNote, setLeaveNote] = useState("");
+  const [adminSelectedName, setAdminSelectedName] = useState("");
 
-  async function loadData(date: string) {
-    setLoading(true);
-    setMessage('');
-    try {
-      const res = await fetch(`/api/bootstrap?date=${date}`);
-      const data: BootstrapResponse = await res.json();
-      setTeam(data.team);
-      setRecords(data.records);
-    } catch {
-      setMessage('Failed to load live data. Please refresh again.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({
+    Hakim: ["Thursday", "Friday"],
+    Nurshafiqah: ["Monday", "Thursday"],
+    Sheela: ["Tuesday"],
+    Syed: ["Tuesday"],
+    Razif: ["Wednesday", "Friday"],
+  });
 
-  function handleIdentityChange(value: string) {
-    setSelectedUser(value);
-    setMessage('');
-    if (value === 'Admin') {
-      setSelectedName('');
-      setSelectedTab('dashboard');
-      return;
-    }
-    setSelectedName(value);
-    setSelectedTab('daily');
-    setSelectedDate(getTodayDateValue());
-  }
+  const todayDate = new Date().toISOString().split("T")[0];
+  const todayDay = new Date().toLocaleDateString("en-US", { weekday: "long" });
 
-  async function saveDailyRecord() {
-    if (!selectedUser || !selectedName || !selectedLeaveType) return;
+  const isAdmin = selectedUser === "Admin" && adminUnlocked;
+  const enteredApp = selectedUser !== "" && (selectedUser !== "Admin" || adminUnlocked);
 
-    setSaving(true);
-    setMessage('');
-    try {
-      const res = await fetch('/api/daily', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actorName: selectedUser,
-          adminPin,
-          attendanceDate: selectedDate,
-          staffName: selectedName,
-          leaveType: selectedLeaveType,
-          note,
-        }),
-      });
-
-      const payload = await res.json();
-      if (!res.ok) {
-        setMessage(payload.error || 'Unable to save record.');
-        return;
-      }
-
-      setSelectedLeaveType('');
-      setNote('');
-      setMessage('Daily record saved successfully.');
-      await loadData(selectedDate);
-    } catch {
-      setMessage('Unexpected error while saving.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function removeRecord(name: string) {
-    if (!isAdmin) return;
-    setSaving(true);
-    setMessage('');
-    try {
-      const res = await fetch(`/api/daily/${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attendanceDate: selectedDate, adminPin }),
-      });
-      const payload = await res.json();
-      if (!res.ok) {
-        setMessage(payload.error || 'Unable to remove record.');
-        return;
-      }
-      setMessage('Record removed.');
-      await loadData(selectedDate);
-    } catch {
-      setMessage('Unexpected error while removing record.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleWfhDay(day: string) {
-    if (!isAdmin || !wfhSelectedName) return;
-    setSaving(true);
-    setMessage('');
-    try {
-      const member = team.find((item) => item.name === wfhSelectedName);
-      const currentDays = member?.wfh_days ?? [];
-      const exists = currentDays.includes(day);
-      let nextDays = exists ? currentDays.filter((item) => item !== day) : [...currentDays, day];
-      if (!exists && nextDays.length > 2) {
-        setMessage('Maximum 2 WFH days only.');
-        setSaving(false);
-        return;
-      }
-
-      const res = await fetch('/api/wfh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPin, staffName: wfhSelectedName, wfhDays: nextDays }),
-      });
-      const payload = await res.json();
-      if (!res.ok) {
-        setMessage(payload.error || 'Unable to update WFH.');
-        return;
-      }
-      setMessage('WFH schedule updated.');
-      await loadData(selectedDate);
-    } catch {
-      setMessage('Unexpected error while updating WFH.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const selectedPersonWfh = useMemo(
-    () => team.find((person) => person.name === wfhSelectedName),
-    [team, wfhSelectedName]
+  const leaveToday = useMemo(
+    () => leaveRecords.filter((r) => r.date === todayDate),
+    [leaveRecords, todayDate]
   );
 
-  const peopleOnLeave = useMemo(() => records.map((record) => record.staff_name), [records]);
-
   const wfhToday = useMemo(
-    () => team.filter((person) => person.wfh_days.includes(currentDayName) && !peopleOnLeave.includes(person.name)),
-    [team, currentDayName, peopleOnLeave]
+    () => team.filter((name) => (wfhMap[name] || []).includes(todayDay)),
+    [wfhMap, todayDay]
   );
 
   const inOfficeToday = useMemo(
-    () => team.filter((person) => !person.wfh_days.includes(currentDayName) && !peopleOnLeave.includes(person.name)),
-    [team, currentDayName, peopleOnLeave]
+    () =>
+      team.filter(
+        (name) =>
+          !wfhToday.includes(name) && !leaveToday.some((record) => record.name === name)
+      ),
+    [wfhToday, leaveToday]
   );
 
-  const leaveBreakdown = useMemo(
-    () => LEAVE_TYPES.map((type) => ({
-      type,
-      count: records.filter((record) => record.leave_type === type).length,
-      people: records.filter((record) => record.leave_type === type),
-    })),
-    [records]
+  const handleAdminLogin = () => {
+    if (adminInput === adminPassword) {
+      setAdminUnlocked(true);
+    }
+  };
+
+  const handleSaveLeave = () => {
+    const targetName = isAdmin ? adminSelectedName : selectedUser;
+    if (!targetName || !leaveType) return;
+
+    setLeaveRecords((prev) => [
+      ...prev.filter((r) => !(r.name === targetName && r.date === todayDate)),
+      {
+        name: targetName,
+        leaveType,
+        note: leaveNote,
+        date: todayDate,
+      },
+    ]);
+
+    setLeaveType("");
+    setLeaveNote("");
+  };
+
+  const toggleWfh = (name: string, day: string) => {
+    if (!isAdmin) return;
+
+    const current = wfhMap[name] || [];
+    const exists = current.includes(day);
+
+    if (exists) {
+      setWfhMap({
+        ...wfhMap,
+        [name]: current.filter((d) => d !== day),
+      });
+      return;
+    }
+
+    if (current.length >= 2) return;
+
+    setWfhMap({
+      ...wfhMap,
+      [name]: [...current, day],
+    });
+  };
+
+  const Avatar = ({ name }: { name: string }) => (
+    <img
+      src={avatarMap[name]}
+      alt={name}
+      className="h-10 w-10 rounded-md border object-cover"
+    />
   );
+
+  if (!enteredApp) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-bold text-black">Attendance + WFH Portal</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Pilih nama dahulu. Admin perlu masukkan password.
+          </p>
+
+          <div className="mt-6">
+            <label className="mb-2 block text-sm font-medium text-black">Pilih nama</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+            >
+              <option value="">Select</option>
+              <option value="Admin">Admin</option>
+              {team.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedUser === "Admin" && (
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium text-black">Admin password</label>
+              <input
+                type="password"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                value={adminInput}
+                onChange={(e) => setAdminInput(e.target.value)}
+                placeholder="Enter password"
+              />
+              <button
+                onClick={handleAdminLogin}
+                className="mt-3 w-full rounded-lg bg-black px-4 py-2 text-white"
+              >
+                Enter Admin
+              </button>
+            </div>
+          )}
+
+          {selectedUser && selectedUser !== "Admin" && (
+            <button
+              onClick={() => setTab("dashboard")}
+              className="mt-4 w-full rounded-lg bg-black px-4 py-2 text-white"
+            >
+              Enter
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container">
-      <div className="shell">
-        <div className="panel">
-          <div className="panel-header">
-            <h2 style={{ margin: 0 }}>Access Portal</h2>
-            <p className="subtitle">Pilih nama dulu. Semua orang boleh tengok dashboard & WFH. Admin sahaja boleh edit.</p>
+    <div className="min-h-screen bg-white px-4 py-6 text-black md:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Attendance + WFH Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Summary harian untuk team. Admin sahaja boleh setup WFH.
+            </p>
           </div>
-          <div className="panel-body">
-            <div style={{ marginBottom: 18 }}>
-              <label className="label">Who are you?</label>
-              <select className="select" value={selectedUser} onChange={(e) => handleIdentityChange(e.target.value)}>
-                <option value="">Choose your name / Admin</option>
-                <option value="Admin">Admin</option>
-                {TEAM_MEMBERS.map((name) => (
-                  <option key={name} value={name}>{name}</option>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full border px-4 py-2 text-sm">{selectedUser}</span>
+            <span className="rounded-full border px-4 py-2 text-sm">{todayDay}</span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-gray-500">Total Leave</p>
+            <p className="mt-2 text-4xl font-bold">{leaveToday.length}</p>
+          </div>
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-gray-500">WFH Today</p>
+            <p className="mt-2 text-4xl font-bold">{wfhToday.length}</p>
+          </div>
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-gray-500">In Office</p>
+            <p className="mt-2 text-4xl font-bold">{inOfficeToday.length}</p>
+          </div>
+          <div className="rounded-2xl border p-4">
+            <p className="text-sm text-gray-500">Team Size</p>
+            <p className="mt-2 text-4xl font-bold">{team.length}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 rounded-2xl border p-2">
+          <button
+            onClick={() => setTab("dashboard")}
+            className={`rounded-xl px-4 py-2 ${tab === "dashboard" ? "bg-black text-white" : "bg-gray-100"}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setTab("daily")}
+            className={`rounded-xl px-4 py-2 ${tab === "daily" ? "bg-black text-white" : "bg-gray-100"}`}
+          >
+            Daily Update
+          </button>
+          <button
+            onClick={() => setTab("wfh")}
+            className={`rounded-xl px-4 py-2 ${tab === "wfh" ? "bg-black text-white" : "bg-gray-100"}`}
+          >
+            WFH Summary
+          </button>
+        </div>
+
+        {tab === "dashboard" && (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border p-4">
+              <h2 className="mb-4 text-xl font-bold">On Leave Today</h2>
+              <div className="space-y-3">
+                {leaveToday.length === 0 && <p className="text-sm text-gray-500">No leave today.</p>}
+                {leaveToday.map((record) => (
+                  <div key={record.name} className="flex items-center gap-3 rounded-xl border p-3">
+                    <Avatar name={record.name} />
+                    <div>
+                      <p className="font-semibold">{record.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {record.leaveType}{record.note ? ` · ${record.note}` : ""}
+                      </p>
+                    </div>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
 
-            <div className="notice" style={{ marginBottom: 18 }}>
-              <div className="section-title">Current Access</div>
-              {!selectedUser ? (
-                <div className="muted">Please choose identity first.</div>
-              ) : isAdmin ? (
-                <div className="muted">Admin can override daily records, manage any date, remove entries, and change WFH schedules.</div>
-              ) : (
-                <div className="muted">User mode auto-focuses on today for your own leave update, while still allowing view access to WFH and dashboard.</div>
-              )}
+            <div className="rounded-2xl border p-4">
+              <h2 className="mb-4 text-xl font-bold">WFH Today</h2>
+              <div className="space-y-3">
+                {wfhToday.length === 0 && <p className="text-sm text-gray-500">No WFH today.</p>}
+                {wfhToday.map((name) => (
+                  <div key={name} className="flex items-center gap-3 rounded-xl border p-3">
+                    <Avatar name={name} />
+                    <div>
+                      <p className="font-semibold">{name}</p>
+                      <p className="text-sm text-gray-500">{(wfhMap[name] || []).join(", ")}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div style={{ marginBottom: 18 }}>
-              <label className="label">Date</label>
-              <input
-                className="input"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                disabled={!isAdmin}
-              />
-              <div className="muted" style={{ marginTop: 8, fontSize: 13 }}>
-                {isAdmin ? 'Admin boleh pilih mana-mana tarikh.' : 'User biasa auto guna tarikh hari ini.'}
+            <div className="rounded-2xl border p-4">
+              <h2 className="mb-4 text-xl font-bold">In Office Today</h2>
+              <div className="space-y-3">
+                {inOfficeToday.map((name) => (
+                  <div key={name} className="flex items-center gap-3 rounded-xl border p-3">
+                    <Avatar name={name} />
+                    <div>
+                      <p className="font-semibold">{name}</p>
+                      <p className="text-sm text-gray-500">Available in office</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "daily" && (
+          <div className="rounded-2xl border p-4">
+            <h2 className="text-xl font-bold">Daily Leave Update</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              User biasa hanya boleh submit untuk diri sendiri. Admin boleh pilih sesiapa.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Name</label>
+                {isAdmin ? (
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                    value={adminSelectedName}
+                    onChange={(e) => setAdminSelectedName(e.target.value)}
+                  >
+                    <option value="">Select name</option>
+                    {team.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="rounded-lg border px-3 py-2">{selectedUser}</div>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">Leave Type</label>
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  value={leaveType}
+                  onChange={(e) => setLeaveType(e.target.value)}
+                >
+                  <option value="">Select leave type</option>
+                  {leaveTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">Note</label>
+                <input
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  value={leaveNote}
+                  onChange={(e) => setLeaveNote(e.target.value)}
+                  placeholder="Reason / note"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveLeave}
+              className="mt-4 rounded-lg bg-black px-4 py-2 text-white"
+            >
+              Save Leave Record
+            </button>
+          </div>
+        )}
+
+        {tab === "wfh" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border p-4">
+              <h2 className="text-xl font-bold">Weekly WFH Summary</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Semua orang boleh view. Hanya Admin boleh edit.
+              </p>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-5">
+                {weekdays.map((day) => (
+                  <div key={day} className="rounded-2xl border p-4">
+                    <p className="mb-3 font-semibold">{day}</p>
+                    <div className="space-y-2">
+                      {team.filter((name) => (wfhMap[name] || []).includes(day)).length === 0 ? (
+                        <p className="text-sm text-gray-400">No WFH</p>
+                      ) : (
+                        team
+                          .filter((name) => (wfhMap[name] || []).includes(day))
+                          .map((name) => (
+                            <div key={name} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
+                              <Avatar name={name} />
+                              <span className="text-sm">{name}</span>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             {isAdmin && (
-              <div style={{ marginBottom: 18 }}>
-                <label className="label">Admin PIN</label>
-                <input
-                  className="input"
-                  type="password"
-                  value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
-                  placeholder="Enter admin PIN"
-                />
-              </div>
-            )}
+              <div className="rounded-2xl border p-4">
+                <h2 className="text-xl font-bold">Admin WFH Setup</h2>
+                <p className="mt-1 text-sm text-gray-600">Maximum 2 hari untuk setiap orang.</p>
 
-            <div className="card">
-              <div className="section-title">Selected Date</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{formatDisplayDate(selectedDate)}</div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap' }}>
-            <div>
-              <h1 className="title">Attendance + WFH Dashboard</h1>
-              <p className="subtitle">Dark blue live app with daily attendance by date, shared dashboard view, and admin override controls.</p>
-            </div>
-            <div className="row">
-              {selectedUser && <span className="badge">{isAdmin ? 'Admin Access' : `${selectedUser} View`}</span>}
-              <span className="badge">{currentDayName}</span>
-            </div>
-          </div>
-
-          <div className="grid-4" style={{ marginBottom: 20 }}>
-            <div className="stat-card"><div className="stat-label">Total Leave</div><div className="stat-value">{records.length}</div></div>
-            <div className="stat-card"><div className="stat-label">WFH Today</div><div className="stat-value">{wfhToday.length}</div></div>
-            <div className="stat-card"><div className="stat-label">In Office</div><div className="stat-value">{inOfficeToday.length}</div></div>
-            <div className="stat-card"><div className="stat-label">Team Size</div><div className="stat-value">{team.length}</div></div>
-          </div>
-
-          <div className="tabs" style={{ marginBottom: 20 }}>
-            <button className={`tab ${selectedTab === 'daily' ? 'active' : ''}`} onClick={() => setSelectedTab('daily')}>Daily Update</button>
-            <button className={`tab ${selectedTab === 'wfh' ? 'active' : ''}`} onClick={() => setSelectedTab('wfh')}>WFH Setup</button>
-            <button className={`tab ${selectedTab === 'dashboard' ? 'active' : ''}`} onClick={() => setSelectedTab('dashboard')}>Dashboard</button>
-          </div>
-
-          {message && <div className="notice" style={{ marginBottom: 20 }}>{message}</div>}
-          {loading && <div className="notice" style={{ marginBottom: 20 }}>Loading live data...</div>}
-
-          {!loading && selectedTab === 'daily' && (
-            <div className="panel">
-              <div className="panel-header">
-                <h2 style={{ margin: 0 }}>Daily Update by Date</h2>
-                <p className="subtitle">User biasa update diri sendiri. Admin boleh pilih sesiapa dan override record.</p>
-              </div>
-              <div className="panel-body">
-                <div className="grid-3" style={{ marginBottom: 16 }}>
-                  <div>
-                    <label className="label">Name</label>
-                    <select
-                      className="select"
-                      value={selectedName}
-                      onChange={(e) => setSelectedName(e.target.value)}
-                      disabled={!selectedUser || !isAdmin}
-                    >
-                      <option value="">Select name</option>
-                      {(isAdmin ? team.map((item) => item.name) : selectedUser ? [selectedUser] : []).map((name) => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Leave Type</label>
-                    <select
-                      className="select"
-                      value={selectedLeaveType}
-                      onChange={(e) => setSelectedLeaveType(e.target.value)}
-                      disabled={!selectedUser}
-                    >
-                      <option value="">Select leave type</option>
-                      {LEAVE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Note</label>
-                    <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" disabled={!selectedUser} />
-                  </div>
-                </div>
-
-                <div className="row" style={{ marginBottom: 18 }}>
-                  <button className="btn btn-primary" onClick={saveDailyRecord} disabled={saving || !selectedUser || !selectedName || !selectedLeaveType}>
-                    {saving ? 'Saving...' : 'Save Daily Record'}
-                  </button>
-                </div>
-
-                <div className="card">
-                  <div className="kv" style={{ marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>Current Records</div>
-                      <div className="muted" style={{ fontSize: 14 }}>{formatDisplayDate(selectedDate)}</div>
-                    </div>
-                    <span className="badge">{records.length} record(s)</span>
-                  </div>
-
-                  <div className="list">
-                    {records.length === 0 ? (
-                      <div className="empty">No leave record for this date.</div>
-                    ) : records.map((record) => (
-                      <div className="record" key={record.staff_name}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className="avatar">{record.staff_name.slice(0, 2).toUpperCase()}</div>
-                          <div>
-                            <div style={{ fontWeight: 700 }}>{record.staff_name}</div>
-                            <div className="muted" style={{ fontSize: 14 }}>{record.note || 'No note added'}</div>
-                          </div>
-                        </div>
-                        <div className="row">
-                          <span className="badge">{record.leave_type}</span>
-                          {isAdmin && (
-                            <button className="btn btn-danger" onClick={() => removeRecord(record.staff_name)} disabled={saving}>Remove</button>
-                          )}
+                <div className="mt-4 space-y-4">
+                  {team.map((name) => (
+                    <div key={name} className="rounded-2xl border p-4">
+                      <div className="mb-3 flex items-center gap-3">
+                        <Avatar name={name} />
+                        <div>
+                          <p className="font-semibold">{name}</p>
+                          <p className="text-sm text-gray-500">
+                            Current: {(wfhMap[name] || []).join(", ") || "No WFH selected"}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {!loading && selectedTab === 'wfh' && (
-            <div className="panel">
-              <div className="panel-header">
-                <h2 style={{ margin: 0 }}>WFH Setup</h2>
-                <p className="subtitle">Semua orang boleh tengok jadual WFH. Admin sahaja boleh ubah pilihan hari untuk setiap orang.</p>
-              </div>
-              <div className="panel-body">
-                <div className="grid-2" style={{ marginBottom: 16 }}>
-                  <div>
-                    <label className="label">Choose Team Member</label>
-                    <select className="select" value={wfhSelectedName} onChange={(e) => setWfhSelectedName(e.target.value)}>
-                      <option value="">Select name</option>
-                      {team.map((person) => <option key={person.name} value={person.name}>{person.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="card">
-                    <div style={{ fontWeight: 700 }}>Selected WFH Pattern</div>
-                    <div className="muted" style={{ marginTop: 8 }}>
-                      {selectedPersonWfh ? `${selectedPersonWfh.name}: ${selectedPersonWfh.wfh_days.join(', ') || 'No day selected yet'}` : 'Select a team member first.'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid-4" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                  {WEEKDAYS.map((day) => {
-                    const active = selectedPersonWfh?.wfh_days.includes(day);
-                    const disabled = !isAdmin || !wfhSelectedName || saving;
-                    return (
-                      <button
-                        key={day}
-                        className={`pill-button ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
-                        onClick={() => toggleWfhDay(day)}
-                        disabled={disabled}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="muted" style={{ marginTop: 14 }}>Maximum 2 hari WFH untuk setiap orang. Semua user boleh view, admin sahaja boleh edit.</div>
-              </div>
-            </div>
-          )}
-
-          {!loading && selectedTab === 'dashboard' && (
-            <div className="grid-2">
-              <div className="panel">
-                <div className="panel-header">
-                  <h2 style={{ margin: 0 }}>Dashboard Summary</h2>
-                  <p className="subtitle">Shared dashboard by selected date for all users.</p>
-                </div>
-                <div className="panel-body">
-                  <div style={{ marginBottom: 22 }}>
-                    <div className="section-title">Who is on leave</div>
-                    <div className="list">
-                      {records.length === 0 ? <div className="empty">No leave submitted for this date.</div> : records.map((record) => (
-                        <div key={record.staff_name} className="record">
-                          <div>
-                            <div style={{ fontWeight: 700 }}>{record.staff_name}</div>
-                            <div className="muted" style={{ fontSize: 14 }}>{record.note || 'No note'}</div>
-                          </div>
-                          <span className="badge">{record.leave_type}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: 22 }}>
-                    <div className="section-title">Working from home</div>
-                    <div className="row">
-                      {wfhToday.length === 0 ? <div className="muted">No scheduled WFH on this day.</div> : wfhToday.map((person) => <span className="badge" key={person.name}>{person.name}</span>)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="section-title">In office</div>
-                    <div className="row">
-                      {inOfficeToday.map((person) => <span className="badge" key={person.name}>{person.name}</span>)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="panel">
-                <div className="panel-header">
-                  <h2 style={{ margin: 0 }}>Leave Breakdown</h2>
-                  <p className="subtitle">Quick category view for everyone.</p>
-                </div>
-                <div className="panel-body list">
-                  {leaveBreakdown.map((group) => (
-                    <div className="card" key={group.type}>
-                      <div className="kv" style={{ marginBottom: 8 }}>
-                        <div style={{ fontWeight: 700 }}>{group.type}</div>
-                        <span className="badge">{group.count}</span>
+                      <div className="flex flex-wrap gap-2">
+                        {weekdays.map((day) => (
+                          <button
+                            key={day}
+                            onClick={() => toggleWfh(name, day)}
+                            className={`rounded-xl border px-3 py-2 text-sm ${
+                              (wfhMap[name] || []).includes(day)
+                                ? "bg-black text-white"
+                                : "bg-white"
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
                       </div>
-                      <div className="muted" style={{ fontSize: 14 }}>{group.people.length > 0 ? group.people.map((item) => item.staff_name).join(', ') : 'No record'}</div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
