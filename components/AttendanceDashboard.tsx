@@ -33,7 +33,7 @@ const avatarMap: Record<string, string> = {
 
 const adminPassword = "1234";
 
-export default function Page() {
+export default function AttendanceDashboard() {
   const [selectedUser, setSelectedUser] = useState("");
   const [adminInput, setAdminInput] = useState("");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
@@ -53,6 +53,7 @@ export default function Page() {
     Sheela: ["Tuesday"],
     Syed: ["Tuesday"],
     Razif: ["Wednesday", "Friday"],
+    Tamil: ["Thursday"],
   });
 
   const todayDate = new Date().toISOString().split("T")[0];
@@ -81,9 +82,7 @@ export default function Page() {
   );
 
   const handleAdminLogin = () => {
-    if (adminInput === adminPassword) {
-      setAdminUnlocked(true);
-    }
+    if (adminInput === adminPassword) setAdminUnlocked(true);
   };
 
   const handleSaveLeave = () => {
@@ -126,173 +125,176 @@ export default function Page() {
     });
   };
 
-  const Avatar = ({ name }: { name: string }) => (
+  const Avatar = ({ name, size = 44 }: { name: string; size?: number }) => (
     <img
       src={avatarMap[name]}
       alt={name}
-      className="h-10 w-10 rounded-md border object-cover"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 12,
+        objectFit: "cover",
+        border: "1px solid #d9e2f2",
+        background: "#fff",
+        flexShrink: 0,
+      }}
     />
   );
 
   if (!enteredApp) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-black">Attendance + WFH Portal</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Pilih nama dahulu. Admin perlu masukkan password.
-          </p>
+      <>
+        <div className="portal-shell">
+          <div className="portal-card">
+            <h1 className="portal-title">Attendance + WFH Portal</h1>
+            <p className="portal-subtitle">
+              Pilih nama dahulu. Admin perlu masukkan password.
+            </p>
 
-          <div className="mt-6">
-            <label className="mb-2 block text-sm font-medium text-black">Pilih nama</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-            >
-              <option value="">Select</option>
-              <option value="Admin">Admin</option>
-              {team.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedUser === "Admin" && (
-            <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium text-black">Admin password</label>
-              <input
-                type="password"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                value={adminInput}
-                onChange={(e) => setAdminInput(e.target.value)}
-                placeholder="Enter password"
-              />
-              <button
-                onClick={handleAdminLogin}
-                className="mt-3 w-full rounded-lg bg-black px-4 py-2 text-white"
-              >
-                Enter Admin
-              </button>
+            <div className="field">
+              <label>Pilih nama</label>
+              <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+                <option value="">Select</option>
+                <option value="Admin">Admin</option>
+                {team.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
 
-          {selectedUser && selectedUser !== "Admin" && (
-            <button
-              onClick={() => setTab("dashboard")}
-              className="mt-4 w-full rounded-lg bg-black px-4 py-2 text-white"
-            >
-              Enter
-            </button>
-          )}
+            {selectedUser === "Admin" && (
+              <div className="field">
+                <label>Admin password</label>
+                <input
+                  type="password"
+                  value={adminInput}
+                  onChange={(e) => setAdminInput(e.target.value)}
+                  placeholder="Enter password"
+                />
+                <button className="primary-btn full-btn" onClick={handleAdminLogin}>
+                  Enter Admin
+                </button>
+              </div>
+            )}
+
+            {selectedUser && selectedUser !== "Admin" && (
+              <button className="primary-btn full-btn" onClick={() => setTab("dashboard")}>
+                Enter
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+
+        <Styles />
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white px-4 py-6 text-black md:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <>
+      <div className="app-shell">
+        <div className="topbar">
           <div>
-            <h1 className="text-3xl font-bold">Attendance + WFH Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <h1 className="main-title">Attendance + WFH Dashboard</h1>
+            <p className="main-subtitle">
               Summary harian untuk team. Admin sahaja boleh setup WFH.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border px-4 py-2 text-sm">{selectedUser}</span>
-            <span className="rounded-full border px-4 py-2 text-sm">{todayDay}</span>
+
+          <div className="topbar-badges">
+            <div className="pill">{selectedUser}</div>
+            <div className="pill">{todayDay}</div>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border p-4">
-            <p className="text-sm text-gray-500">Total Leave</p>
-            <p className="mt-2 text-4xl font-bold">{leaveToday.length}</p>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-label">Total Leave</div>
+            <div className="stat-value">{leaveToday.length}</div>
           </div>
-          <div className="rounded-2xl border p-4">
-            <p className="text-sm text-gray-500">WFH Today</p>
-            <p className="mt-2 text-4xl font-bold">{wfhToday.length}</p>
+          <div className="stat-card">
+            <div className="stat-label">WFH Today</div>
+            <div className="stat-value">{wfhToday.length}</div>
           </div>
-          <div className="rounded-2xl border p-4">
-            <p className="text-sm text-gray-500">In Office</p>
-            <p className="mt-2 text-4xl font-bold">{inOfficeToday.length}</p>
+          <div className="stat-card">
+            <div className="stat-label">In Office</div>
+            <div className="stat-value">{inOfficeToday.length}</div>
           </div>
-          <div className="rounded-2xl border p-4">
-            <p className="text-sm text-gray-500">Team Size</p>
-            <p className="mt-2 text-4xl font-bold">{team.length}</p>
+          <div className="stat-card">
+            <div className="stat-label">Team Size</div>
+            <div className="stat-value">{team.length}</div>
           </div>
         </div>
 
-        <div className="flex gap-2 rounded-2xl border p-2">
+        <div className="tabs">
           <button
+            className={tab === "dashboard" ? "tab active" : "tab"}
             onClick={() => setTab("dashboard")}
-            className={`rounded-xl px-4 py-2 ${tab === "dashboard" ? "bg-black text-white" : "bg-gray-100"}`}
           >
             Dashboard
           </button>
           <button
+            className={tab === "daily" ? "tab active" : "tab"}
             onClick={() => setTab("daily")}
-            className={`rounded-xl px-4 py-2 ${tab === "daily" ? "bg-black text-white" : "bg-gray-100"}`}
           >
             Daily Update
           </button>
           <button
+            className={tab === "wfh" ? "tab active" : "tab"}
             onClick={() => setTab("wfh")}
-            className={`rounded-xl px-4 py-2 ${tab === "wfh" ? "bg-black text-white" : "bg-gray-100"}`}
           >
             WFH Summary
           </button>
         </div>
 
         {tab === "dashboard" && (
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border p-4">
-              <h2 className="mb-4 text-xl font-bold">On Leave Today</h2>
-              <div className="space-y-3">
-                {leaveToday.length === 0 && <p className="text-sm text-gray-500">No leave today.</p>}
+          <div className="dashboard-grid">
+            <div className="panel">
+              <h2>On Leave Today</h2>
+              <div className="panel-list">
+                {leaveToday.length === 0 && <p className="muted">No leave today.</p>}
                 {leaveToday.map((record) => (
-                  <div key={record.name} className="flex items-center gap-3 rounded-xl border p-3">
+                  <div key={record.name} className="person-card">
                     <Avatar name={record.name} />
                     <div>
-                      <p className="font-semibold">{record.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {record.leaveType}{record.note ? ` · ${record.note}` : ""}
-                      </p>
+                      <div className="person-name">{record.name}</div>
+                      <div className="person-sub">
+                        {record.leaveType}
+                        {record.note ? ` · ${record.note}` : ""}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border p-4">
-              <h2 className="mb-4 text-xl font-bold">WFH Today</h2>
-              <div className="space-y-3">
-                {wfhToday.length === 0 && <p className="text-sm text-gray-500">No WFH today.</p>}
+            <div className="panel">
+              <h2>WFH Today</h2>
+              <div className="panel-list">
+                {wfhToday.length === 0 && <p className="muted">No WFH today.</p>}
                 {wfhToday.map((name) => (
-                  <div key={name} className="flex items-center gap-3 rounded-xl border p-3">
+                  <div key={name} className="person-card">
                     <Avatar name={name} />
                     <div>
-                      <p className="font-semibold">{name}</p>
-                      <p className="text-sm text-gray-500">{(wfhMap[name] || []).join(", ")}</p>
+                      <div className="person-name">{name}</div>
+                      <div className="person-sub">{(wfhMap[name] || []).join(", ")}</div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border p-4">
-              <h2 className="mb-4 text-xl font-bold">In Office Today</h2>
-              <div className="space-y-3">
+            <div className="panel">
+              <h2>In Office Today</h2>
+              <div className="panel-list">
                 {inOfficeToday.map((name) => (
-                  <div key={name} className="flex items-center gap-3 rounded-xl border p-3">
+                  <div key={name} className="person-card">
                     <Avatar name={name} />
                     <div>
-                      <p className="font-semibold">{name}</p>
-                      <p className="text-sm text-gray-500">Available in office</p>
+                      <div className="person-name">{name}</div>
+                      <div className="person-sub">Available in office</div>
                     </div>
                   </div>
                 ))}
@@ -302,18 +304,17 @@ export default function Page() {
         )}
 
         {tab === "daily" && (
-          <div className="rounded-2xl border p-4">
-            <h2 className="text-xl font-bold">Daily Leave Update</h2>
-            <p className="mt-1 text-sm text-gray-600">
+          <div className="panel">
+            <h2>Daily Leave Update</h2>
+            <p className="muted">
               User biasa hanya boleh submit untuk diri sendiri. Admin boleh pilih sesiapa.
             </p>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-2 block text-sm font-medium">Name</label>
+            <div className="form-grid">
+              <div className="field">
+                <label>Name</label>
                 {isAdmin ? (
                   <select
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
                     value={adminSelectedName}
                     onChange={(e) => setAdminSelectedName(e.target.value)}
                   >
@@ -325,17 +326,13 @@ export default function Page() {
                     ))}
                   </select>
                 ) : (
-                  <div className="rounded-lg border px-3 py-2">{selectedUser}</div>
+                  <div className="readonly-box">{selectedUser}</div>
                 )}
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">Leave Type</label>
-                <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
-                >
+              <div className="field">
+                <label>Leave Type</label>
+                <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
                   <option value="">Select leave type</option>
                   {leaveTypes.map((type) => (
                     <option key={type} value={type}>
@@ -345,10 +342,9 @@ export default function Page() {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">Note</label>
+              <div className="field">
+                <label>Note</label>
                 <input
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
                   value={leaveNote}
                   onChange={(e) => setLeaveNote(e.target.value)}
                   placeholder="Reason / note"
@@ -356,37 +352,33 @@ export default function Page() {
               </div>
             </div>
 
-            <button
-              onClick={handleSaveLeave}
-              className="mt-4 rounded-lg bg-black px-4 py-2 text-white"
-            >
+            <button className="primary-btn" onClick={handleSaveLeave}>
               Save Leave Record
             </button>
           </div>
         )}
 
         {tab === "wfh" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border p-4">
-              <h2 className="text-xl font-bold">Weekly WFH Summary</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Semua orang boleh view. Hanya Admin boleh edit.
-              </p>
+          <div className="stack">
+            <div className="panel">
+              <h2>Weekly WFH Summary</h2>
+              <p className="muted">Semua orang boleh view. Hanya Admin boleh edit.</p>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-5">
+              <div className="wfh-grid">
                 {weekdays.map((day) => (
-                  <div key={day} className="rounded-2xl border p-4">
-                    <p className="mb-3 font-semibold">{day}</p>
-                    <div className="space-y-2">
+                  <div key={day} className="day-card">
+                    <div className="day-title">{day}</div>
+
+                    <div className="day-list">
                       {team.filter((name) => (wfhMap[name] || []).includes(day)).length === 0 ? (
-                        <p className="text-sm text-gray-400">No WFH</p>
+                        <p className="muted small">No WFH</p>
                       ) : (
                         team
                           .filter((name) => (wfhMap[name] || []).includes(day))
                           .map((name) => (
-                            <div key={name} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
-                              <Avatar name={name} />
-                              <span className="text-sm">{name}</span>
+                            <div key={name} className="person-row">
+                              <Avatar name={name} size={36} />
+                              <span>{name}</span>
                             </div>
                           ))
                       )}
@@ -397,33 +389,29 @@ export default function Page() {
             </div>
 
             {isAdmin && (
-              <div className="rounded-2xl border p-4">
-                <h2 className="text-xl font-bold">Admin WFH Setup</h2>
-                <p className="mt-1 text-sm text-gray-600">Maximum 2 hari untuk setiap orang.</p>
+              <div className="panel">
+                <h2>Admin WFH Setup</h2>
+                <p className="muted">Maximum 2 hari untuk setiap orang.</p>
 
-                <div className="mt-4 space-y-4">
+                <div className="admin-list">
                   {team.map((name) => (
-                    <div key={name} className="rounded-2xl border p-4">
-                      <div className="mb-3 flex items-center gap-3">
+                    <div key={name} className="admin-card">
+                      <div className="person-card">
                         <Avatar name={name} />
                         <div>
-                          <p className="font-semibold">{name}</p>
-                          <p className="text-sm text-gray-500">
+                          <div className="person-name">{name}</div>
+                          <div className="person-sub">
                             Current: {(wfhMap[name] || []).join(", ") || "No WFH selected"}
-                          </p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="day-buttons">
                         {weekdays.map((day) => (
                           <button
                             key={day}
+                            className={(wfhMap[name] || []).includes(day) ? "mini-btn active" : "mini-btn"}
                             onClick={() => toggleWfh(name, day)}
-                            className={`rounded-xl border px-3 py-2 text-sm ${
-                              (wfhMap[name] || []).includes(day)
-                                ? "bg-black text-white"
-                                : "bg-white"
-                            }`}
                           >
                             {day}
                           </button>
@@ -437,6 +425,337 @@ export default function Page() {
           </div>
         )}
       </div>
-    </div>
+
+      <Styles />
+    </>
+  );
+}
+
+function Styles() {
+  return (
+    <style jsx global>{`
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f6f8fc;
+        color: #111827;
+      }
+
+      .portal-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: linear-gradient(180deg, #f7f9fd 0%, #eef3fb 100%);
+      }
+
+      .portal-card {
+        width: 100%;
+        max-width: 420px;
+        background: white;
+        border: 1px solid #dde6f3;
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 20px 45px rgba(37, 99, 235, 0.08);
+      }
+
+      .portal-title {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .portal-subtitle {
+        margin: 10px 0 0;
+        color: #64748b;
+        line-height: 1.5;
+      }
+
+      .app-shell {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .main-title {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .main-subtitle {
+        margin: 8px 0 0;
+        color: #64748b;
+      }
+
+      .topbar-badges {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid #d9e2f2;
+        background: white;
+        font-size: 14px;
+        color: #334155;
+        font-weight: 700;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card,
+      .panel,
+      .day-card,
+      .admin-card {
+        background: white;
+        border: 1px solid #dde6f3;
+        border-radius: 22px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+      }
+
+      .stat-card {
+        padding: 20px;
+      }
+
+      .stat-label {
+        color: #64748b;
+        font-size: 14px;
+      }
+
+      .stat-value {
+        margin-top: 8px;
+        font-size: 40px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        background: white;
+        border: 1px solid #dde6f3;
+        border-radius: 18px;
+        padding: 8px;
+        margin-bottom: 20px;
+      }
+
+      .tab {
+        flex: 1;
+        border: 0;
+        background: #eef3fb;
+        color: #334155;
+        padding: 14px 18px;
+        border-radius: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background: #1d4ed8;
+        color: white;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+
+      .panel {
+        padding: 20px;
+      }
+
+      .panel h2 {
+        margin: 0 0 10px;
+        font-size: 26px;
+        color: #0f172a;
+      }
+
+      .muted {
+        color: #64748b;
+      }
+
+      .small {
+        font-size: 14px;
+      }
+
+      .panel-list,
+      .admin-list,
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .person-card,
+      .person-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .person-card {
+        padding: 12px;
+        border-radius: 18px;
+        border: 1px solid #e7edf7;
+        background: #fbfdff;
+      }
+
+      .person-name {
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .person-sub {
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 14px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin: 18px 0;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .field label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #334155;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid #d9e2f2;
+        background: white;
+        color: #0f172a;
+        outline: none;
+      }
+
+      .readonly-box {
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid #d9e2f2;
+        background: #f8fbff;
+        color: #334155;
+      }
+
+      .primary-btn,
+      .full-btn {
+        border: 0;
+        background: #1d4ed8;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+
+      .full-btn {
+        width: 100%;
+      }
+
+      .wfh-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-top: 18px;
+      }
+
+      .day-card {
+        padding: 16px;
+      }
+
+      .day-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 12px;
+      }
+
+      .day-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .admin-card {
+        padding: 16px;
+      }
+
+      .day-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      .mini-btn {
+        border: 1px solid #d9e2f2;
+        background: #f8fbff;
+        color: #334155;
+        padding: 10px 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .mini-btn.active {
+        background: #1d4ed8;
+        color: white;
+        border-color: #1d4ed8;
+      }
+
+      @media (max-width: 1100px) {
+        .stats-grid,
+        .dashboard-grid,
+        .form-grid,
+        .wfh-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          flex-direction: column;
+        }
+
+        .tabs {
+          flex-direction: column;
+        }
+      }
+    `}</style>
   );
 }
