@@ -61,7 +61,18 @@ export default function AttendanceDashboard() {
 
     return () => clearInterval(timer);
   }, []);
+useEffect(() => {
+  const testSupabase = async () => {
+    const { data, error } = await supabase
+      .from("daily_attendance")
+      .select("*");
 
+    console.log("SUPABASE TEST:", data, error);
+  };
+
+  testSupabase();
+}, []);
+  
   const todayDate = now.toISOString().split("T")[0];
   const todayDay = now.toLocaleDateString("en-US", { weekday: "long" });
   const displayDate = now.toLocaleDateString("en-GB", {
