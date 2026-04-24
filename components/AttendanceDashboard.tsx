@@ -1,16 +1,19 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const team = [
   "Zahran",
   "Sheela",
   "Nurshafiqah",
+  "Danish",
   "Syed",
   "Tamil",
   "Jeff",
   "Hakim",
+  "Razif",
+  "Amal",
 ];
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -20,11 +23,13 @@ const avatarMap: Record<string, string> = {
   Zahran: "/avatars/zahran.png",
   Sheela: "/avatars/sheela.png",
   Nurshafiqah: "/avatars/nurshafiqah.png",
+  Danish: "/avatars/danish.png",
   Syed: "/avatars/syed.png",
   Tamil: "/avatars/tamil.png",
   Jeff: "/avatars/jeff.png",
   Hakim: "/avatars/hakim.png",
-  
+  Razif: "/avatars/razif.png",
+  Amal: "/avatars/amal.png",
 };
 
 const adminPassword = "1234";
@@ -32,11 +37,26 @@ const adminPassword = "1234";
 type TabKey = "dashboard" | "daily" | "wfh";
 
 type LeaveRecord = {
+  id?: string;
+  attendance_date: string;
   name: string;
-  leaveType: string;
-  note: string;
-  date: string;
+  leave_type: string;
+  note: string | null;
 };
+
+type WfhRecord = {
+  id?: string;
+  name: string;
+  day: string;
+};
+
+function getTodayDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 export default function AttendanceDashboard() {
   const [selectedUser, setSelectedUser] = useState("");
@@ -45,34 +65,21 @@ export default function AttendanceDashboard() {
   const [tab, setTab] = useState<TabKey>("dashboard");
 
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
+  const [wfhRecords, setWfhRecords] = useState<WfhRecord[]>([]);
+
   const [leaveType, setLeaveType] = useState("");
   const [leaveNote, setLeaveNote] = useState("");
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
-  const [wfhMap, setWfhMap] = useState<Record<string, string[]>>({});
-
   const [now, setNow] = useState(new Date());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-useEffect(() => {
-  const testSupabase = async () => {
-    const { data, error } = await supabase
-      .from("daily_attendance")
-      .select("*");
 
-    console.log("SUPABASE TEST:", data, error);
-  };
-
-  testSupabase();
-}, []);
-  
-  const todayDate = now.toISOString().split("T")[0];
+  const todayDate = getTodayDate();
   const todayDay = now.toLocaleDateString("en-US", { weekday: "long" });
   const displayDate = now.toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -89,10 +96,56 @@ useEffect(() => {
   const isAdmin = selectedUser === "Admin" && adminUnlocked;
   const enteredApp = selectedUser !== "" && (selectedUser !== "Admin" || adminUnlocked);
 
-  const leaveToday = useMemo(
-    () => leaveRecords.filter((r) => r.date === todayDate),
-    [leaveRecords, todayDate]
-  );
+  const fetchData = async () => {
+    setLoading(true);
+
+    const { data: dailyData, error: dailyError } = await supabase
+      .from("daily_attendance")
+      .select("*")
+      .eq("attendance_date", todayDate);
+
+    const { data: wfhData, error: wfhError } = await supabase
+      .from("wfh_schedule")
+      .select("*");
+
+    if (!dailyError) setLeaveRecords((dailyData || []) as LeaveRecord[]);
+    if (!wfhError) setWfhRecords((wfhData || []) as WfhRecord[]);
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("attendance-live-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "daily_attendance" },
+        () => fetchData()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "wfh_schedule" },
+        () => fetchData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [todayDate]);
+
+  const wfhMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    wfhRecords.forEach((record) => {
+      if (!map[record.name]) map[record.name] = [];
+      map[record.name].push(record.day);
+    });
+    return map;
+  }, [wfhRecords]);
+
+  const leaveToday = leaveRecords;
 
   const wfhToday = useMemo(
     () => team.filter((name) => (wfhMap[name] || []).includes(todayDay)),
@@ -103,7 +156,8 @@ useEffect(() => {
     () =>
       team.filter(
         (name) =>
-          !wfhToday.includes(name) && !leaveToday.some((record) => record.name === name)
+          !wfhToday.includes(name) &&
+          !leaveToday.some((record) => record.name === name)
       ),
     [wfhToday, leaveToday]
   );
@@ -125,44 +179,76 @@ useEffect(() => {
     setAdminSelectedName("");
   };
 
-  const handleSaveLeave = () => {
+  const handleSaveLeave = async () => {
     const targetName = isAdmin ? adminSelectedName : selectedUser;
     if (!targetName || !leaveType) return;
 
-    setLeaveRecords((prev) => [
-      ...prev.filter((r) => !(r.name === targetName && r.date === todayDate)),
+    const { error } = await supabase.from("daily_attendance").upsert(
       {
+        attendance_date: todayDate,
         name: targetName,
-        leaveType,
-        note: leaveNote,
-        date: todayDate,
+        leave_type: leaveType,
+        note: leaveNote || null,
+        updated_at: new Date().toISOString(),
       },
-    ]);
+      { onConflict: "attendance_date,name" }
+    );
 
-    setLeaveType("");
-    setLeaveNote("");
+    if (!error) {
+      setLeaveType("");
+      setLeaveNote("");
+      setAdminSelectedName("");
+      fetchData();
+    } else {
+      alert(error.message);
+    }
   };
 
-  const toggleWfh = (name: string, day: string) => {
+  const handleClearLeave = async (name: string) => {
+    if (!isAdmin) return;
+
+    const { error } = await supabase
+      .from("daily_attendance")
+      .delete()
+      .eq("attendance_date", todayDate)
+      .eq("name", name);
+
+    if (!error) fetchData();
+    else alert(error.message);
+  };
+
+  const toggleWfh = async (name: string, day: string) => {
     if (!isAdmin) return;
 
     const current = wfhMap[name] || [];
     const exists = current.includes(day);
 
     if (exists) {
-      setWfhMap({
-        ...wfhMap,
-        [name]: current.filter((d) => d !== day),
-      });
+      const { error } = await supabase
+        .from("wfh_schedule")
+        .delete()
+        .eq("name", name)
+        .eq("day", day);
+
+      if (!error) fetchData();
+      else alert(error.message);
+
       return;
     }
 
-    if (current.length >= 2) return;
+    if (current.length >= 2) {
+      alert("Maximum 2 WFH days only.");
+      return;
+    }
 
-    setWfhMap({
-      ...wfhMap,
-      [name]: [...current, day],
+    const { error } = await supabase.from("wfh_schedule").insert({
+      name,
+      day,
+      updated_at: new Date().toISOString(),
     });
+
+    if (!error) fetchData();
+    else alert(error.message);
   };
 
   const Avatar = ({ name, size = 44 }: { name: string; size?: number }) => {
@@ -268,6 +354,7 @@ useEffect(() => {
             <h1 className="main-title">Attendance + WFH Dashboard</h1>
             <p className="main-subtitle">
               Summary harian untuk team. Admin sahaja boleh setup WFH.
+              {loading ? " Loading..." : ""}
             </p>
           </div>
 
@@ -302,22 +389,13 @@ useEffect(() => {
         </div>
 
         <div className="tabs">
-          <button
-            className={tab === "dashboard" ? "tab active" : "tab"}
-            onClick={() => setTab("dashboard")}
-          >
+          <button className={tab === "dashboard" ? "tab active" : "tab"} onClick={() => setTab("dashboard")}>
             Dashboard
           </button>
-          <button
-            className={tab === "daily" ? "tab active" : "tab"}
-            onClick={() => setTab("daily")}
-          >
+          <button className={tab === "daily" ? "tab active" : "tab"} onClick={() => setTab("daily")}>
             Daily Update
           </button>
-          <button
-            className={tab === "wfh" ? "tab active" : "tab"}
-            onClick={() => setTab("wfh")}
-          >
+          <button className={tab === "wfh" ? "tab active" : "tab"} onClick={() => setTab("wfh")}>
             WFH Summary
           </button>
         </div>
@@ -334,10 +412,15 @@ useEffect(() => {
                     <div>
                       <div className="person-name">{record.name}</div>
                       <div className="person-sub">
-                        {record.leaveType}
+                        {record.leave_type}
                         {record.note ? ` · ${record.note}` : ""}
                       </div>
                     </div>
+                    {isAdmin && (
+                      <button className="small-danger-btn" onClick={() => handleClearLeave(record.name)}>
+                        Clear
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -387,10 +470,7 @@ useEffect(() => {
               <div className="field">
                 <label>Name</label>
                 {isAdmin ? (
-                  <select
-                    value={adminSelectedName}
-                    onChange={(e) => setAdminSelectedName(e.target.value)}
-                  >
+                  <select value={adminSelectedName} onChange={(e) => setAdminSelectedName(e.target.value)}>
                     <option value="">Select name</option>
                     {team.map((name) => (
                       <option key={name} value={name}>
@@ -417,11 +497,7 @@ useEffect(() => {
 
               <div className="field">
                 <label>Note</label>
-                <input
-                  value={leaveNote}
-                  onChange={(e) => setLeaveNote(e.target.value)}
-                  placeholder="Reason / note"
-                />
+                <input value={leaveNote} onChange={(e) => setLeaveNote(e.target.value)} placeholder="Reason / note" />
               </div>
             </div>
 
@@ -718,6 +794,17 @@ function Styles() {
         margin-top: 4px;
         color: #64748b;
         font-size: 14px;
+      }
+
+      .small-danger-btn {
+        margin-left: auto;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #b91c1c;
+        border-radius: 999px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 700;
       }
 
       .form-grid {
