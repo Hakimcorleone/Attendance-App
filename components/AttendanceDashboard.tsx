@@ -192,12 +192,12 @@ setAdminSelectedName("");
 fetchData();
       {
         attendance_date: todayDate,
-        staff_name: targetName,
+        name: targetName,
         leave_type: leaveType,
         note: leaveNote || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "attendance_date,staff_name" }
+      { onConflict: "attendance_date,name" }
     );
 
     if (!error) {
