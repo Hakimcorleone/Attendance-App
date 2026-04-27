@@ -184,6 +184,18 @@ export default function AttendanceDashboard() {
     if (!targetName || !leaveType) return;
 
     const { error } = await supabase.from("daily_attendance").upsert(
+
+      if (error) {
+  console.error("SAVE LEAVE ERROR:", error);
+  alert("Save failed: " + error.message);
+  return;
+}
+
+alert("Leave saved to Supabase!");
+setLeaveType("");
+setLeaveNote("");
+setAdminSelectedName("");
+fetchData();
       {
         attendance_date: todayDate,
         name: targetName,
