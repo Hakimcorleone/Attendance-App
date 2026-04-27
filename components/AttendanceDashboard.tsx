@@ -7,13 +7,10 @@ const team = [
   "Zahran",
   "Sheela",
   "Nurshafiqah",
-  "Danish",
   "Syed",
   "Tamil",
   "Jeff",
   "Hakim",
-  "Razif",
-  "Amal",
 ];
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -23,14 +20,11 @@ const avatarMap: Record<string, string> = {
   Zahran: "/avatars/zahran.png",
   Sheela: "/avatars/sheela.png",
   Nurshafiqah: "/avatars/nurshafiqah.png",
-  Danish: "/avatars/danish.png",
   Syed: "/avatars/syed.png",
   Tamil: "/avatars/tamil.png",
   Jeff: "/avatars/jeff.png",
   Hakim: "/avatars/hakim.png",
-  Razif: "/avatars/razif.png",
-  Amal: "/avatars/amal.png",
-};
+  };
 
 const adminPassword = "1234";
 
