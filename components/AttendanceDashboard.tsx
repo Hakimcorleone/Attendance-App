@@ -24,7 +24,7 @@ const avatarMap: Record<string, string> = {
   Tamil: "/avatars/tamil.png",
   Jeff: "/avatars/jeff.png",
   Hakim: "/avatars/hakim.png",
-  };
+};
 
 const adminPassword = "1234";
 
@@ -66,7 +66,7 @@ export default function AttendanceDashboard() {
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
   const [now, setNow] = useState(new Date());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -88,7 +88,8 @@ export default function AttendanceDashboard() {
   });
 
   const isAdmin = selectedUser === "Admin" && adminUnlocked;
-  const enteredApp = selectedUser !== "" && (selectedUser !== "Admin" || adminUnlocked);
+  const enteredApp =
+    selectedUser !== "" && (selectedUser !== "Admin" || adminUnlocked);
 
   const fetchData = async () => {
     setLoading(true);
@@ -102,8 +103,17 @@ export default function AttendanceDashboard() {
       .from("wfh_schedule")
       .select("*");
 
-    if (!dailyError) setLeaveRecords((dailyData || []) as LeaveRecord[]);
-    if (!wfhError) setWfhRecords((wfhData || []) as WfhRecord[]);
+    if (dailyError) {
+      console.error("FETCH DAILY ERROR:", dailyError);
+    } else {
+      setLeaveRecords((dailyData || []) as LeaveRecord[]);
+    }
+
+    if (wfhError) {
+      console.error("FETCH WFH ERROR:", wfhError);
+    } else {
+      setWfhRecords((wfhData || []) as WfhRecord[]);
+    }
 
     setLoading(false);
   };
@@ -160,6 +170,8 @@ export default function AttendanceDashboard() {
     if (adminInput === adminPassword) {
       setAdminUnlocked(true);
       setTab("dashboard");
+    } else {
+      alert("Wrong admin password");
     }
   };
 
@@ -174,49 +186,14 @@ export default function AttendanceDashboard() {
   };
 
   const handleSaveLeave = async () => {
-  const targetName = isAdmin ? adminSelectedName : selectedUser;
+    const targetName = isAdmin ? adminSelectedName : selectedUser;
 
-  if (!targetName || !leaveType) {
-    alert("Please select name and leave type");
-    return;
-  }
-
-  const { error } = await supabase.from("daily_attendance").upsert(
-    {
-      attendance_date: todayDate,
-      name: targetName,
-      leave_type: leaveType,
-      note: leaveNote || null,
-    },
-    {
-      onConflict: "attendance_date,name",
+    if (!targetName || !leaveType) {
+      alert("Please select name and leave type");
+      return;
     }
-  );
 
-  if (error) {
-    console.error("SAVE LEAVE ERROR:", error);
-    alert("Save failed: " + error.message);
-    return;
-    alert("Leave saved!");
-setLeaveType("");
-setLeaveNote("");
-setAdminSelectedName("");
-fetchData();
-  }
-
-  alert("Leave saved!");
-  setLeaveType("");
-  setLeaveNote("");
-  setAdminSelectedName("");
-  fetchData();
-};
-}
-
-alert("Leave saved to Supabase!");
-setLeaveType("");
-setLeaveNote("");
-setAdminSelectedName("");
-fetchData();
+    const { error } = await supabase.from("daily_attendance").upsert(
       {
         attendance_date: todayDate,
         name: targetName,
@@ -224,17 +201,22 @@ fetchData();
         note: leaveNote || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "attendance_date,name" }
+      {
+        onConflict: "attendance_date,name",
+      }
     );
 
-    if (!error) {
-      setLeaveType("");
-      setLeaveNote("");
-      setAdminSelectedName("");
-      fetchData();
-    } else {
-      alert(error.message);
+    if (error) {
+      console.error("SAVE LEAVE ERROR:", error);
+      alert("Save failed: " + error.message);
+      return;
     }
+
+    alert("Leave saved!");
+    setLeaveType("");
+    setLeaveNote("");
+    setAdminSelectedName("");
+    fetchData();
   };
 
   const handleClearLeave = async (name: string) => {
@@ -246,8 +228,12 @@ fetchData();
       .eq("attendance_date", todayDate)
       .eq("name", name);
 
-    if (!error) fetchData();
-    else alert(error.message);
+    if (error) {
+      alert("Clear failed: " + error.message);
+      return;
+    }
+
+    fetchData();
   };
 
   const toggleWfh = async (name: string, day: string) => {
@@ -263,9 +249,12 @@ fetchData();
         .eq("name", name)
         .eq("day", day);
 
-      if (!error) fetchData();
-      else alert(error.message);
+      if (error) {
+        alert("WFH delete failed: " + error.message);
+        return;
+      }
 
+      fetchData();
       return;
     }
 
@@ -280,8 +269,12 @@ fetchData();
       updated_at: new Date().toISOString(),
     });
 
-    if (!error) fetchData();
-    else alert(error.message);
+    if (error) {
+      alert("WFH save failed: " + error.message);
+      return;
+    }
+
+    fetchData();
   };
 
   const Avatar = ({ name, size = 44 }: { name: string; size?: number }) => {
@@ -340,7 +333,10 @@ fetchData();
 
             <div className="field">
               <label>Pilih nama</label>
-              <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+              >
                 <option value="">Select</option>
                 <option value="Admin">Admin</option>
                 {team.map((name) => (
@@ -422,13 +418,22 @@ fetchData();
         </div>
 
         <div className="tabs">
-          <button className={tab === "dashboard" ? "tab active" : "tab"} onClick={() => setTab("dashboard")}>
+          <button
+            className={tab === "dashboard" ? "tab active" : "tab"}
+            onClick={() => setTab("dashboard")}
+          >
             Dashboard
           </button>
-          <button className={tab === "daily" ? "tab active" : "tab"} onClick={() => setTab("daily")}>
+          <button
+            className={tab === "daily" ? "tab active" : "tab"}
+            onClick={() => setTab("daily")}
+          >
             Daily Update
           </button>
-          <button className={tab === "wfh" ? "tab active" : "tab"} onClick={() => setTab("wfh")}>
+          <button
+            className={tab === "wfh" ? "tab active" : "tab"}
+            onClick={() => setTab("wfh")}
+          >
             WFH Summary
           </button>
         </div>
@@ -450,7 +455,10 @@ fetchData();
                       </div>
                     </div>
                     {isAdmin && (
-                      <button className="small-danger-btn" onClick={() => handleClearLeave(record.name)}>
+                      <button
+                        className="small-danger-btn"
+                        onClick={() => handleClearLeave(record.name)}
+                      >
                         Clear
                       </button>
                     )}
@@ -503,7 +511,10 @@ fetchData();
               <div className="field">
                 <label>Name</label>
                 {isAdmin ? (
-                  <select value={adminSelectedName} onChange={(e) => setAdminSelectedName(e.target.value)}>
+                  <select
+                    value={adminSelectedName}
+                    onChange={(e) => setAdminSelectedName(e.target.value)}
+                  >
                     <option value="">Select name</option>
                     {team.map((name) => (
                       <option key={name} value={name}>
@@ -530,7 +541,11 @@ fetchData();
 
               <div className="field">
                 <label>Note</label>
-                <input value={leaveNote} onChange={(e) => setLeaveNote(e.target.value)} placeholder="Reason / note" />
+                <input
+                  value={leaveNote}
+                  onChange={(e) => setLeaveNote(e.target.value)}
+                  placeholder="Reason / note"
+                />
               </div>
             </div>
 
