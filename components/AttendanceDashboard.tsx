@@ -197,6 +197,11 @@ export default function AttendanceDashboard() {
     console.error("SAVE LEAVE ERROR:", error);
     alert("Save failed: " + error.message);
     return;
+    alert("Leave saved!");
+setLeaveType("");
+setLeaveNote("");
+setAdminSelectedName("");
+fetchData();
   }
 
   alert("Leave saved!");
