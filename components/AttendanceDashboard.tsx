@@ -326,9 +326,9 @@ export default function AttendanceDashboard() {
       <>
         <div className="portal-shell">
           <div className="portal-card">
-            <h1 className="portal-title">Attendance + WFH Portal</h1>
+            <h1 className="portal-title">Governance Division Tracker</h1>
             <p className="portal-subtitle">
-              Pilih nama dahulu. Admin perlu masukkan password.
+              Select Your Name
             </p>
 
             <div className="field">
@@ -380,9 +380,9 @@ export default function AttendanceDashboard() {
       <div className="app-shell">
         <div className="topbar">
           <div>
-            <h1 className="main-title">Attendance + WFH Dashboard</h1>
+            <h1 className="main-title">Governance Division Tracker</h1>
             <p className="main-subtitle">
-              Summary harian untuk team. Admin sahaja boleh setup WFH.
+              Daily Leave Status & WFH.
               {loading ? " Loading..." : ""}
             </p>
           </div>
