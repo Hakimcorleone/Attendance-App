@@ -174,15 +174,37 @@ export default function AttendanceDashboard() {
   };
 
   const handleSaveLeave = async () => {
-    const targetName = isAdmin ? adminSelectedName : selectedUser;
-    if (!targetName || !leaveType) return;
+  const targetName = isAdmin ? adminSelectedName : selectedUser;
 
-    const { error } = await supabase.from("daily_attendance").upsert(
+  if (!targetName || !leaveType) {
+    alert("Please select name and leave type");
+    return;
+  }
 
-      if (error) {
-  console.error("SAVE LEAVE ERROR:", error);
-  alert("Save failed: " + error.message);
-  return;
+  const { error } = await supabase.from("daily_attendance").upsert(
+    {
+      attendance_date: todayDate,
+      name: targetName,
+      leave_type: leaveType,
+      note: leaveNote || null,
+    },
+    {
+      onConflict: "attendance_date,name",
+    }
+  );
+
+  if (error) {
+    console.error("SAVE LEAVE ERROR:", error);
+    alert("Save failed: " + error.message);
+    return;
+  }
+
+  alert("Leave saved!");
+  setLeaveType("");
+  setLeaveNote("");
+  setAdminSelectedName("");
+  fetchData();
+};
 }
 
 alert("Leave saved to Supabase!");
