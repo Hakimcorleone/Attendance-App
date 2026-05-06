@@ -11,6 +11,7 @@ const team = [
   "Tamil",
   "Jeff",
   "Hakim",
+  "Azam",
 ];
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -24,6 +25,7 @@ const avatarMap: Record<string, string> = {
   Tamil: "/avatars/tamil.png",
   Jeff: "/avatars/jeff.png",
   Hakim: "/avatars/hakim.png",
+  Azam: "/avatars/azam.png",
 };
 
 const adminPassword = "1234";
