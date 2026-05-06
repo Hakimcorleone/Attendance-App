@@ -2,13 +2,12 @@ export const TEAM_MEMBERS = [
   'Zahran',
   'Sheela',
   'Nurshafiqah',
-  'Danish',
   'Syed',
   'Tamil',
   'Jeff',
   'Hakim',
-  'Razif',
-  'Amal',
+  'Azam',
+  
 ] as const;
 
 export const LEAVE_TYPES = ['AL', 'MC', 'EL', 'RL', 'PL', 'ML', 'HL', 'CL', 'Others'] as const;
