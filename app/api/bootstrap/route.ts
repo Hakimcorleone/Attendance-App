@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { TEAM_MEMBERS } from '@/lib/constants';
 import { getServerSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
@@ -9,21 +10,33 @@ export async function GET(request: NextRequest) {
 
   const supabase = getServerSupabaseClient();
 
-  const [{ data: team, error: teamError }, { data: records, error: recordsError }] = await Promise.all([
-    supabase.from('team_members').select('name,wfh_days').order('name'),
+  const [{ data: records, error: recordsError }, { data: wfhRows, error: wfhError }] = await Promise.all([
     supabase
       .from('daily_attendance')
-      .select('id,attendance_date,staff_name,leave_type,note,created_at,updated_at')
+      .select('id,attendance_date,name,leave_type,note,created_at,updated_at')
       .eq('attendance_date', date)
-      .order('staff_name'),
+      .order('name'),
+    supabase.from('wfh_schedule').select('name,day').order('name'),
   ]);
 
-  if (teamError || recordsError) {
+  if (recordsError || wfhError) {
     return NextResponse.json(
-      { error: teamError?.message || recordsError?.message || 'Failed to load data' },
+      { error: recordsError?.message || wfhError?.message || 'Failed to load data' },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ team: team ?? [], records: records ?? [] });
+  const wfhMap = new Map<string, string[]>();
+  (wfhRows ?? []).forEach((row) => {
+    const days = wfhMap.get(row.name) ?? [];
+    days.push(row.day);
+    wfhMap.set(row.name, days);
+  });
+
+  const team = TEAM_MEMBERS.map((name) => ({
+    name,
+    wfh_days: wfhMap.get(name) ?? [],
+  }));
+
+  return NextResponse.json({ team, records: records ?? [] });
 }
