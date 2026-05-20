@@ -6,16 +6,58 @@ type DailyPayload = {
   actorName?: string;
   adminPin?: string;
   attendanceDate?: string;
+  startDate?: string;
+  endDate?: string;
   staffName?: string;
   leaveType?: string;
   note?: string;
 };
 
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRange(startDate: string, endDate: string) {
+  if (!startDate || !endDate) return [];
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    dates.push(formatDateValue(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as DailyPayload;
-  const { actorName, adminPin, attendanceDate, staffName, leaveType, note } = body;
+  const {
+    actorName,
+    adminPin,
+    attendanceDate,
+    startDate,
+    endDate,
+    staffName,
+    leaveType,
+    note,
+  } = body;
+  const firstDate = startDate || attendanceDate || '';
+  const lastDate = endDate || firstDate;
+  const dateRange = getDateRange(firstDate, lastDate);
 
-  if (!actorName || !attendanceDate || !staffName || !leaveType) {
+  if (!actorName || dateRange.length === 0 || !staffName || !leaveType) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
   }
 
@@ -36,12 +78,12 @@ export async function POST(request: Request) {
 
   const supabase = getServerSupabaseClient();
   const { error } = await supabase.from('daily_attendance').upsert(
-    {
-      attendance_date: attendanceDate,
+    dateRange.map((date) => ({
+      attendance_date: date,
       staff_name: staffName,
       leave_type: leaveType,
       note: note?.trim() || null,
-    },
+    })),
     { onConflict: 'attendance_date,staff_name' }
   );
 
@@ -49,5 +91,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, count: dateRange.length });
 }
