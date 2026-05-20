@@ -78,6 +78,54 @@ function getDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
+function offsetDateValue(dateString: string, offset: number) {
+  const date = new Date(`${dateString}T00:00:00`);
+  date.setDate(date.getDate() + offset);
+  return formatDateValue(date);
+}
+
+function getLeaveRecordKey(record: LeaveRecord) {
+  return [
+    record.attendance_date,
+    record.name,
+    record.leave_type,
+    record.note?.trim() || "",
+  ].join("::");
+}
+
+function getConsecutiveLeaveDuration(record: LeaveRecord, records: LeaveRecord[]) {
+  const matchingDates = new Set(
+    records
+      .filter(
+        (item) =>
+          item.name === record.name &&
+          item.leave_type === record.leave_type &&
+          (item.note?.trim() || "") === (record.note?.trim() || "")
+      )
+      .map((item) => item.attendance_date)
+  );
+
+  let days = 1;
+  let previousDate = offsetDateValue(record.attendance_date, -1);
+  let nextDate = offsetDateValue(record.attendance_date, 1);
+
+  while (matchingDates.has(previousDate)) {
+    days += 1;
+    previousDate = offsetDateValue(previousDate, -1);
+  }
+
+  while (matchingDates.has(nextDate)) {
+    days += 1;
+    nextDate = offsetDateValue(nextDate, 1);
+  }
+
+  return days;
+}
+
+function formatDuration(days: number) {
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
 export default function AttendanceDashboard() {
   const [selectedUser, setSelectedUser] = useState("");
   const [adminInput, setAdminInput] = useState("");
@@ -85,6 +133,7 @@ export default function AttendanceDashboard() {
   const [tab, setTab] = useState<TabKey>("dashboard");
 
   const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
+  const [allLeaveRecords, setAllLeaveRecords] = useState<LeaveRecord[]>([]);
   const [wfhRecords, setWfhRecords] = useState<WfhRecord[]>([]);
 
   const [leaveType, setLeaveType] = useState("");
@@ -125,7 +174,8 @@ export default function AttendanceDashboard() {
     const { data: dailyData, error: dailyError } = await supabase
       .from("daily_attendance")
       .select("*")
-      .eq("attendance_date", todayDate);
+      .order("attendance_date", { ascending: true })
+      .order("name", { ascending: true });
 
     const { data: wfhData, error: wfhError } = await supabase
       .from("wfh_schedule")
@@ -134,7 +184,9 @@ export default function AttendanceDashboard() {
     if (dailyError) {
       console.error("FETCH DAILY ERROR:", dailyError);
     } else {
-      setLeaveRecords((dailyData || []) as LeaveRecord[]);
+      const records = (dailyData || []) as LeaveRecord[];
+      setAllLeaveRecords(records);
+      setLeaveRecords(records.filter((record) => record.attendance_date === todayDate));
     }
 
     if (wfhError) {
@@ -178,6 +230,14 @@ export default function AttendanceDashboard() {
   }, [wfhRecords]);
 
   const leaveToday = leaveRecords;
+
+  const leaveDurationMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    leaveToday.forEach((record) => {
+      map[getLeaveRecordKey(record)] = getConsecutiveLeaveDuration(record, allLeaveRecords);
+    });
+    return map;
+  }, [leaveToday, allLeaveRecords]);
 
   const wfhToday = useMemo(
     () => team.filter((name) => (wfhMap[name] || []).includes(todayDay)),
@@ -492,26 +552,31 @@ export default function AttendanceDashboard() {
               <h2>On Leave Today</h2>
               <div className="panel-list">
                 {leaveToday.length === 0 && <p className="muted">No leave today.</p>}
-                {leaveToday.map((record) => (
-                  <div key={record.name} className="person-card">
-                    <Avatar name={record.name} />
-                    <div>
-                      <div className="person-name">{record.name}</div>
-                      <div className="person-sub">
-                        {record.leave_type}
-                        {record.note ? ` · ${record.note}` : ""}
+                {leaveToday.map((record) => {
+                  const duration = leaveDurationMap[getLeaveRecordKey(record)] || 1;
+
+                  return (
+                    <div key={record.name} className="person-card">
+                      <Avatar name={record.name} />
+                      <div>
+                        <div className="person-name">{record.name}</div>
+                        <div className="person-sub">
+                          {record.leave_type}
+                          {record.note ? ` · ${record.note}` : ""}
+                          {` · ${formatDuration(duration)}`}
+                        </div>
                       </div>
+                      {isAdmin && (
+                        <button
+                          className="small-danger-btn"
+                          onClick={() => handleClearLeave(record.name)}
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
-                    {isAdmin && (
-                      <button
-                        className="small-danger-btn"
-                        onClick={() => handleClearLeave(record.name)}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
