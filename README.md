@@ -81,7 +81,7 @@ http://localhost:3000
 
 ## 4) Deploy to Vercel
 
-Vercel documents that Next.js is supported with zero-config deployment, and the CLI deployment flow is `vercel --prod`.
+This app is intended to deploy on Vercel.
 
 ### Easiest way
 
@@ -96,17 +96,6 @@ Vercel documents that Next.js is supported with zero-config deployment, and the 
 npm i -g vercel
 vercel --prod
 ```
-
-## 5) Deploy to Netlify
-
-This project can also deploy to Netlify as a Next.js app, but Vercel is the smoother choice for Next.js App Router.
-
-If you still want Netlify:
-
-- push repo to GitHub
-- import repo into Netlify
-- set environment variables
-- let Netlify detect Next.js
 
 ## How the data works
 
