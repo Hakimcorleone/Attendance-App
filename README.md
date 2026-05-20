@@ -35,10 +35,8 @@ After your project is ready:
 
 That will create:
 
-- `team_members`
 - `daily_attendance`
-
-and seed your 10 staff names.
+- `wfh_schedule`
 
 ## 2) Add environment variables
 
@@ -99,19 +97,21 @@ vercel --prod
 
 ## How the data works
 
-### `team_members`
-Stores:
-- name
-- recurring `wfh_days`
-
 ### `daily_attendance`
 Stores:
 - `attendance_date`
-- `staff_name`
+- `name`
 - `leave_type`
 - `note`
 
-There is a unique constraint on `(attendance_date, staff_name)` so each person only has one leave record per date.
+There is a unique constraint on `(attendance_date, name)` so each person only has one leave record per date. Multi-day leave is saved as one row per date in the selected range.
+
+### `wfh_schedule`
+Stores:
+- `name`
+- `day`
+
+There is a unique constraint on `(name, day)` so each person can only have one row per weekday.
 
 ## Suggested upgrade after launch
 
