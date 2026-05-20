@@ -46,6 +46,11 @@ type WfhRecord = {
   day: string;
 };
 
+type LeaveRange = {
+  startDate: string;
+  endDate: string;
+};
+
 function formatDateValue(date: Date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -84,6 +89,23 @@ function offsetDateValue(dateString: string, offset: number) {
   return formatDateValue(date);
 }
 
+function formatDisplayDate(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatLeaveRange(range: LeaveRange) {
+  if (range.startDate === range.endDate) {
+    return formatDisplayDate(range.startDate);
+  }
+
+  return `${formatDisplayDate(range.startDate)} - ${formatDisplayDate(range.endDate)}`;
+}
+
 function getLeaveRecordKey(record: LeaveRecord) {
   return [
     record.attendance_date,
@@ -93,7 +115,7 @@ function getLeaveRecordKey(record: LeaveRecord) {
   ].join("::");
 }
 
-function getConsecutiveLeaveDuration(record: LeaveRecord, records: LeaveRecord[]) {
+function getConsecutiveLeaveRange(record: LeaveRecord, records: LeaveRecord[]): LeaveRange {
   const matchingDates = new Set(
     records
       .filter(
@@ -105,25 +127,22 @@ function getConsecutiveLeaveDuration(record: LeaveRecord, records: LeaveRecord[]
       .map((item) => item.attendance_date)
   );
 
-  let days = 1;
+  let startDate = record.attendance_date;
+  let endDate = record.attendance_date;
   let previousDate = offsetDateValue(record.attendance_date, -1);
   let nextDate = offsetDateValue(record.attendance_date, 1);
 
   while (matchingDates.has(previousDate)) {
-    days += 1;
+    startDate = previousDate;
     previousDate = offsetDateValue(previousDate, -1);
   }
 
   while (matchingDates.has(nextDate)) {
-    days += 1;
+    endDate = nextDate;
     nextDate = offsetDateValue(nextDate, 1);
   }
 
-  return days;
-}
-
-function formatDuration(days: number) {
-  return days === 1 ? "1 day" : `${days} days`;
+  return { startDate, endDate };
 }
 
 export default function AttendanceDashboard() {
@@ -231,10 +250,10 @@ export default function AttendanceDashboard() {
 
   const leaveToday = leaveRecords;
 
-  const leaveDurationMap = useMemo(() => {
-    const map: Record<string, number> = {};
+  const leaveRangeMap = useMemo(() => {
+    const map: Record<string, LeaveRange> = {};
     leaveToday.forEach((record) => {
-      map[getLeaveRecordKey(record)] = getConsecutiveLeaveDuration(record, allLeaveRecords);
+      map[getLeaveRecordKey(record)] = getConsecutiveLeaveRange(record, allLeaveRecords);
     });
     return map;
   }, [leaveToday, allLeaveRecords]);
@@ -553,7 +572,10 @@ export default function AttendanceDashboard() {
               <div className="panel-list">
                 {leaveToday.length === 0 && <p className="muted">No leave today.</p>}
                 {leaveToday.map((record) => {
-                  const duration = leaveDurationMap[getLeaveRecordKey(record)] || 1;
+                  const range = leaveRangeMap[getLeaveRecordKey(record)] || {
+                    startDate: record.attendance_date,
+                    endDate: record.attendance_date,
+                  };
 
                   return (
                     <div key={record.name} className="person-card">
@@ -563,7 +585,7 @@ export default function AttendanceDashboard() {
                         <div className="person-sub">
                           {record.leave_type}
                           {record.note ? ` · ${record.note}` : ""}
-                          {` · ${formatDuration(duration)}`}
+                          {` · ${formatLeaveRange(range)}`}
                         </div>
                       </div>
                       {isAdmin && (
