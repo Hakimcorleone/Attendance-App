@@ -80,11 +80,11 @@ export async function POST(request: Request) {
   const { error } = await supabase.from('daily_attendance').upsert(
     dateRange.map((date) => ({
       attendance_date: date,
-      staff_name: staffName,
+      name: staffName,
       leave_type: leaveType,
       note: note?.trim() || null,
     })),
-    { onConflict: 'attendance_date,staff_name' }
+    { onConflict: 'attendance_date,name' }
   );
 
   if (error) {
