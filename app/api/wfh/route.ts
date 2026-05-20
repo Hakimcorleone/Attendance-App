@@ -25,13 +25,28 @@ export async function POST(request: Request) {
   }
 
   const supabase = getServerSupabaseClient();
-  const { error } = await supabase
-    .from('team_members')
-    .update({ wfh_days: wfhDays })
+  const { error: deleteError } = await supabase
+    .from('wfh_schedule')
+    .delete()
     .eq('name', staffName);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  if (wfhDays.length === 0) {
+    return NextResponse.json({ ok: true });
+  }
+
+  const { error: insertError } = await supabase.from('wfh_schedule').insert(
+    wfhDays.map((day) => ({
+      name: staffName,
+      day,
+    }))
+  );
+
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
