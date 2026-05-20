@@ -46,12 +46,36 @@ type WfhRecord = {
   day: string;
 };
 
-function getTodayDate() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
+function formatDateValue(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function getTodayDate() {
+  return formatDateValue(new Date());
+}
+
+function getDateRange(startDate: string, endDate: string) {
+  if (!startDate || !endDate) return [];
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    dates.push(formatDateValue(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
 }
 
 export default function AttendanceDashboard() {
@@ -65,6 +89,8 @@ export default function AttendanceDashboard() {
 
   const [leaveType, setLeaveType] = useState("");
   const [leaveNote, setLeaveNote] = useState("");
+  const [leaveStartDate, setLeaveStartDate] = useState(getTodayDate());
+  const [leaveEndDate, setLeaveEndDate] = useState(getTodayDate());
   const [adminSelectedName, setAdminSelectedName] = useState("");
 
   const [now, setNow] = useState(new Date());
@@ -168,6 +194,11 @@ export default function AttendanceDashboard() {
     [wfhToday, leaveToday]
   );
 
+  const leaveDateRange = useMemo(
+    () => getDateRange(leaveStartDate, leaveEndDate),
+    [leaveStartDate, leaveEndDate]
+  );
+
   const handleAdminLogin = () => {
     if (adminInput === adminPassword) {
       setAdminUnlocked(true);
@@ -184,6 +215,8 @@ export default function AttendanceDashboard() {
     setTab("dashboard");
     setLeaveType("");
     setLeaveNote("");
+    setLeaveStartDate(todayDate);
+    setLeaveEndDate(todayDate);
     setAdminSelectedName("");
   };
 
@@ -195,14 +228,21 @@ export default function AttendanceDashboard() {
       return;
     }
 
+    if (leaveDateRange.length === 0) {
+      alert("Please select a valid date range");
+      return;
+    }
+
+    const records = leaveDateRange.map((attendanceDate) => ({
+      attendance_date: attendanceDate,
+      name: targetName,
+      leave_type: leaveType,
+      note: leaveNote || null,
+      updated_at: new Date().toISOString(),
+    }));
+
     const { error } = await supabase.from("daily_attendance").upsert(
-      {
-        attendance_date: todayDate,
-        name: targetName,
-        leave_type: leaveType,
-        note: leaveNote || null,
-        updated_at: new Date().toISOString(),
-      },
+      records,
       {
         onConflict: "attendance_date,name",
       }
@@ -214,9 +254,15 @@ export default function AttendanceDashboard() {
       return;
     }
 
-    alert("Leave saved!");
+    alert(
+      leaveDateRange.length === 1
+        ? "Leave saved!"
+        : `Leave saved for ${leaveDateRange.length} days!`
+    );
     setLeaveType("");
     setLeaveNote("");
+    setLeaveStartDate(todayDate);
+    setLeaveEndDate(todayDate);
     setAdminSelectedName("");
     fetchData();
   };
@@ -542,6 +588,29 @@ export default function AttendanceDashboard() {
               </div>
 
               <div className="field">
+                <label>Start Date</label>
+                <input
+                  type="date"
+                  value={leaveStartDate}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setLeaveStartDate(value);
+                    if (leaveEndDate < value) setLeaveEndDate(value);
+                  }}
+                />
+              </div>
+
+              <div className="field">
+                <label>End Date</label>
+                <input
+                  type="date"
+                  value={leaveEndDate}
+                  min={leaveStartDate}
+                  onChange={(e) => setLeaveEndDate(e.target.value)}
+                />
+              </div>
+
+              <div className="field">
                 <label>Note</label>
                 <input
                   value={leaveNote}
@@ -550,6 +619,12 @@ export default function AttendanceDashboard() {
                 />
               </div>
             </div>
+
+            <p className="muted small">
+              {leaveDateRange.length <= 1
+                ? "This record will be saved for 1 day."
+                : `This record will be saved for ${leaveDateRange.length} days.`}
+            </p>
 
             <button className="primary-btn" onClick={handleSaveLeave}>
               Save Leave Record
