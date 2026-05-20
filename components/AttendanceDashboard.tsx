@@ -157,6 +157,7 @@ export default function AttendanceDashboard() {
 
   const [leaveType, setLeaveType] = useState("");
   const [leaveNote, setLeaveNote] = useState("");
+  const [leaveIsHalfDay, setLeaveIsHalfDay] = useState(false);
   const [leaveStartDate, setLeaveStartDate] = useState(getTodayDate());
   const [leaveEndDate, setLeaveEndDate] = useState(getTodayDate());
   const [adminSelectedName, setAdminSelectedName] = useState("");
@@ -294,6 +295,7 @@ export default function AttendanceDashboard() {
     setTab("dashboard");
     setLeaveType("");
     setLeaveNote("");
+    setLeaveIsHalfDay(false);
     setLeaveStartDate(todayDate);
     setLeaveEndDate(todayDate);
     setAdminSelectedName("");
@@ -312,11 +314,16 @@ export default function AttendanceDashboard() {
       return;
     }
 
+    const trimmedLeaveNote = leaveNote.trim();
+    const savedNote = [leaveIsHalfDay ? "Half day" : "", trimmedLeaveNote]
+      .filter(Boolean)
+      .join(" - ");
+
     const records = leaveDateRange.map((attendanceDate) => ({
       attendance_date: attendanceDate,
       name: targetName,
       leave_type: leaveType,
-      note: leaveNote || null,
+      note: savedNote || null,
       updated_at: new Date().toISOString(),
     }));
 
@@ -340,6 +347,7 @@ export default function AttendanceDashboard() {
     );
     setLeaveType("");
     setLeaveNote("");
+    setLeaveIsHalfDay(false);
     setLeaveStartDate(todayDate);
     setLeaveEndDate(todayDate);
     setAdminSelectedName("");
@@ -698,6 +706,18 @@ export default function AttendanceDashboard() {
               </div>
 
               <div className="field">
+                <label>Duration</label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={leaveIsHalfDay}
+                    onChange={(e) => setLeaveIsHalfDay(e.target.checked)}
+                  />
+                  <span>Half day</span>
+                </label>
+              </div>
+
+              <div className="field">
                 <label>Note</label>
                 <input
                   value={leaveNote}
@@ -1047,6 +1067,33 @@ function Styles() {
         background: white;
         color: #0f172a;
         outline: none;
+      }
+
+      .checkbox-row {
+        min-height: 43px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid #d9e2f2;
+        background: white;
+        color: #334155;
+        cursor: pointer;
+      }
+
+      .checkbox-row input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        padding: 0;
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+
+      .checkbox-row span {
+        font-size: 14px;
+        font-weight: 700;
       }
 
       .readonly-box {
