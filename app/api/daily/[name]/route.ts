@@ -27,7 +27,7 @@ export async function DELETE(
     .from('daily_attendance')
     .delete()
     .eq('attendance_date', attendanceDate)
-    .eq('staff_name', decodeURIComponent(name));
+    .eq('name', decodeURIComponent(name));
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
