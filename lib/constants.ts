@@ -7,7 +7,8 @@ export const TEAM_MEMBERS = [
   'Jeff',
   'Hakim',
   'Azam',
-  
+  'Azizah',
+  'Natasha',
 ] as const;
 
 export const LEAVE_TYPES = ['AL', 'MC', 'EL', 'RL', 'PL', 'ML', 'HL', 'CL', 'Others'] as const;
