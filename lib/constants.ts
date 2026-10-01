@@ -3,7 +3,6 @@ export const TEAM_MEMBERS = [
   'Sheela',
   'Nurshafiqah',
   'Syed',
-  'Tamil',
   'Jeff',
   'Hakim',
   'Azam',
