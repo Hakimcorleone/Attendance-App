@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import LiveView from "@/components/LiveView";
 
 const team = [
   "Zahran",
@@ -33,6 +34,9 @@ const avatarMap: Record<string, string> = {
 const adminPassword = "1234";
 
 type TabKey = "dashboard" | "daily" | "wfh";
+type DashboardView = "live" | "list";
+
+const dashboardViewKey = "attendance-dashboard-view";
 
 type LeaveRecord = {
   id?: string;
@@ -166,6 +170,25 @@ export default function AttendanceDashboard() {
 
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
+  const [dashboardView, setDashboardView] = useState<DashboardView>("live");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(dashboardViewKey);
+      if (saved === "live" || saved === "list") setDashboardView(saved);
+    } catch {
+      // Storage can be blocked (private mode); the default view is fine.
+    }
+  }, []);
+
+  const changeDashboardView = (view: DashboardView) => {
+    setDashboardView(view);
+    try {
+      localStorage.setItem(dashboardViewKey, view);
+    } catch {
+      // Ignore storage failures; the choice just won't be remembered.
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -584,6 +607,33 @@ export default function AttendanceDashboard() {
         </nav>
 
         {tab === "dashboard" && (
+          <div className="view-switch">
+            <button
+              className={dashboardView === "live" ? "view-btn active" : "view-btn"}
+              onClick={() => changeDashboardView("live")}
+            >
+              🎮 Live View
+            </button>
+            <button
+              className={dashboardView === "list" ? "view-btn active" : "view-btn"}
+              onClick={() => changeDashboardView("list")}
+            >
+              <Icon name="grid" size={15} />
+              List
+            </button>
+          </div>
+        )}
+
+        {tab === "dashboard" && dashboardView === "live" && (
+          <LiveView
+            inOffice={inOfficeToday}
+            wfh={wfhToday}
+            leave={leaveToday}
+            avatarMap={avatarMap}
+          />
+        )}
+
+        {tab === "dashboard" && dashboardView === "list" && (
           <div className="dashboard-grid">
             <section className="panel tone-rose">
               <div className="panel-head">
@@ -1385,6 +1435,41 @@ function Styles() {
         background: var(--brand-deep);
         color: white;
         box-shadow: 0 8px 18px rgba(11, 27, 74, 0.25);
+      }
+
+      /* ---------- Dashboard view switch ---------- */
+
+      .view-switch {
+        display: inline-flex;
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: 14px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      .view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .view-btn:hover {
+        color: var(--ink);
+      }
+
+      .view-btn.active {
+        background: #eef4ff;
+        color: var(--brand);
       }
 
       /* ---------- Panels ---------- */
