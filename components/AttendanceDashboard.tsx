@@ -284,9 +284,15 @@ export default function AttendanceDashboard() {
     return map;
   }, [leaveToday, allLeaveRecords]);
 
+  // Leave takes priority over a recurring WFH day.
   const wfhToday = useMemo(
-    () => team.filter((name) => (wfhMap[name] || []).includes(todayDay)),
-    [wfhMap, todayDay]
+    () =>
+      team.filter(
+        (name) =>
+          (wfhMap[name] || []).includes(todayDay) &&
+          !leaveToday.some((record) => record.name === name)
+      ),
+    [wfhMap, todayDay, leaveToday]
   );
 
   const inOfficeToday = useMemo(
