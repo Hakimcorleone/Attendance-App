@@ -1,17 +1,11 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Press_Start_2P } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 
 const sans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   variable: '--font-sans',
-});
-
-const pixel = Press_Start_2P({
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-pixel',
 });
 
 export const metadata: Metadata = {
@@ -21,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${pixel.variable}`}>
+    <html lang="en" className={sans.variable}>
       <body>{children}</body>
     </html>
   );
