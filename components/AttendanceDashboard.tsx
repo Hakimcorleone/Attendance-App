@@ -629,7 +629,6 @@ export default function AttendanceDashboard() {
             inOffice={inOfficeToday}
             wfh={wfhToday}
             leave={leaveToday}
-            avatarMap={avatarMap}
             hour={hour}
           />
         )}
