@@ -12,6 +12,7 @@ type DailyPayload = {
   leaveType?: string;
   note?: string;
   isHalfDay?: boolean;
+  halfDayPeriod?: 'AM' | 'PM';
 };
 
 function formatDateValue(date: Date) {
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
     leaveType,
     note,
     isHalfDay,
+    halfDayPeriod,
   } = body;
   const firstDate = startDate || attendanceDate || '';
   const lastDate = endDate || firstDate;
@@ -78,8 +80,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'You can only submit for yourself.' }, { status: 403 });
   }
 
+  if (isHalfDay && halfDayPeriod !== 'AM' && halfDayPeriod !== 'PM') {
+    return NextResponse.json({ error: 'Choose AM or PM for half day leave.' }, { status: 400 });
+  }
+
   const trimmedNote = note?.trim() || '';
-  const savedNote = [isHalfDay ? 'Half day' : '', trimmedNote].filter(Boolean).join(' - ');
+  const savedNote = [isHalfDay ? `Half day ${halfDayPeriod}` : '', trimmedNote].filter(Boolean).join(' - ');
 
   const supabase = getServerSupabaseClient();
   const { error } = await supabase.from('daily_attendance').upsert(

@@ -7,7 +7,7 @@ Dark blue Next.js app for daily leave updates, recurring WFH schedules, and a sh
 - Staff choose their name first before using the app.
 - Normal users can:
   - submit leave for themselves only
-  - submit full-day or half-day leave records
+  - submit full-day or half-day (AM / PM) leave records
   - view the WFH page
   - view the dashboard
 - Admin can:
@@ -105,7 +105,7 @@ Stores:
 - `leave_type`
 - `note`
 
-There is a unique constraint on `(attendance_date, name)` so each person only has one leave record per date. Multi-day leave is saved as one row per date in the selected range. Half-day leave is marked in the note as `Half day` so it works with the existing database columns.
+There is a unique constraint on `(attendance_date, name)` so each person only has one leave record per date. Multi-day leave is saved as one row per date in the selected range. Half-day leave is marked in the note as `Half day AM` or `Half day PM` so it works with the existing database columns (older records may just say `Half day`).
 
 ### `wfh_schedule`
 Stores:
