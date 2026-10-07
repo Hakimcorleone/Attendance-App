@@ -748,6 +748,11 @@ export default function AttendanceDashboard() {
                       </div>
                       {halfDayMeta(name)}
                     </div>
+                    {isAdmin && halfDayAtWork[name] && (
+                      <button className="small-danger-btn" onClick={() => handleClearLeave(name)}>
+                        Clear
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -771,6 +776,11 @@ export default function AttendanceDashboard() {
                       </div>
                       {halfDayMeta(name)}
                     </div>
+                    {isAdmin && halfDayAtWork[name] && (
+                      <button className="small-danger-btn" onClick={() => handleClearLeave(name)}>
+                        Clear
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
