@@ -68,6 +68,20 @@ function getTodayDate() {
   return formatDateValue(new Date());
 }
 
+// Half-day leave splits the day at 1pm: AM leave is away until then, PM leave from then on.
+const HALF_DAY_SPLIT_HOUR = 13;
+
+function getHalfDayPeriod(note: string | null) {
+  const match = note?.match(/^Half day (AM|PM)\b/i);
+  return match ? (match[1].toUpperCase() as "AM" | "PM") : null;
+}
+
+function isOnLeaveNow(record: LeaveRecord, isAfternoon: boolean) {
+  const period = getHalfDayPeriod(record.note);
+  if (!period) return true;
+  return period === "AM" ? !isAfternoon : isAfternoon;
+}
+
 function getDateRange(startDate: string, endDate: string) {
   if (!startDate || !endDate) return [];
 
@@ -275,7 +289,33 @@ export default function AttendanceDashboard() {
     return map;
   }, [wfhRecords]);
 
-  const leaveToday = leaveRecords;
+  const isAfternoon = now.getHours() >= HALF_DAY_SPLIT_HOUR;
+
+  // Who is away right now; half-day people count as working for their other half.
+  const leaveToday = useMemo(
+    () => leaveRecords.filter((record) => isOnLeaveNow(record, isAfternoon)),
+    [leaveRecords, isAfternoon]
+  );
+
+  const halfDayAtWork = useMemo(() => {
+    const map: Record<string, "AM" | "PM"> = {};
+    leaveRecords.forEach((record) => {
+      const period = getHalfDayPeriod(record.note);
+      if (period && !isOnLeaveNow(record, isAfternoon)) map[record.name] = period;
+    });
+    return map;
+  }, [leaveRecords, isAfternoon]);
+
+  const halfDayMeta = (name: string) => {
+    const period = halfDayAtWork[name];
+    if (!period) return null;
+    return (
+      <div className="person-meta">
+        <Icon name="calendar" size={13} />
+        {period === "AM" ? "Back from half-day AM leave" : "Half-day PM leave from 1pm"}
+      </div>
+    );
+  };
 
   const leaveRangeMap = useMemo(() => {
     const map: Record<string, LeaveRange> = {};
@@ -706,6 +746,7 @@ export default function AttendanceDashboard() {
                         <Icon name="home" size={13} />
                         {(wfhMap[name] || []).join(", ")}
                       </div>
+                      {halfDayMeta(name)}
                     </div>
                   </div>
                 ))}
@@ -728,6 +769,7 @@ export default function AttendanceDashboard() {
                         <span className="live-dot" />
                         Available in office
                       </div>
+                      {halfDayMeta(name)}
                     </div>
                   </div>
                 ))}
