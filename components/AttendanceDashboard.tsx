@@ -164,6 +164,7 @@ export default function AttendanceDashboard() {
   const [leaveType, setLeaveType] = useState("");
   const [leaveNote, setLeaveNote] = useState("");
   const [leaveIsHalfDay, setLeaveIsHalfDay] = useState(false);
+  const [leaveHalfDayPeriod, setLeaveHalfDayPeriod] = useState<"" | "AM" | "PM">("");
   const [leaveStartDate, setLeaveStartDate] = useState(getTodayDate());
   const [leaveEndDate, setLeaveEndDate] = useState(getTodayDate());
   const [adminSelectedName, setAdminSelectedName] = useState("");
@@ -327,6 +328,7 @@ export default function AttendanceDashboard() {
     setLeaveType("");
     setLeaveNote("");
     setLeaveIsHalfDay(false);
+    setLeaveHalfDayPeriod("");
     setLeaveStartDate(todayDate);
     setLeaveEndDate(todayDate);
     setAdminSelectedName("");
@@ -345,8 +347,13 @@ export default function AttendanceDashboard() {
       return;
     }
 
+    if (leaveIsHalfDay && !leaveHalfDayPeriod) {
+      alert("Please choose AM or PM for half day leave");
+      return;
+    }
+
     const trimmedLeaveNote = leaveNote.trim();
-    const savedNote = [leaveIsHalfDay ? "Half day" : "", trimmedLeaveNote]
+    const savedNote = [leaveIsHalfDay ? `Half day ${leaveHalfDayPeriod}` : "", trimmedLeaveNote]
       .filter(Boolean)
       .join(" - ");
 
@@ -379,6 +386,7 @@ export default function AttendanceDashboard() {
     setLeaveType("");
     setLeaveNote("");
     setLeaveIsHalfDay(false);
+    setLeaveHalfDayPeriod("");
     setLeaveStartDate(todayDate);
     setLeaveEndDate(todayDate);
     setAdminSelectedName("");
@@ -804,14 +812,34 @@ export default function AttendanceDashboard() {
 
               <div className="field">
                 <label>Duration</label>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={leaveIsHalfDay}
-                    onChange={(e) => setLeaveIsHalfDay(e.target.checked)}
-                  />
-                  <span>Half day</span>
-                </label>
+                <div className="duration-row">
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={leaveIsHalfDay}
+                      onChange={(e) => {
+                        setLeaveIsHalfDay(e.target.checked);
+                        if (!e.target.checked) setLeaveHalfDayPeriod("");
+                      }}
+                    />
+                    <span>Half day</span>
+                  </label>
+                  {leaveIsHalfDay && (
+                    <div className="period-switch" role="group" aria-label="Half day period">
+                      {(["AM", "PM"] as const).map((period) => (
+                        <button
+                          key={period}
+                          type="button"
+                          className={leaveHalfDayPeriod === period ? "period-btn active" : "period-btn"}
+                          aria-pressed={leaveHalfDayPeriod === period}
+                          onClick={() => setLeaveHalfDayPeriod(period)}
+                        >
+                          {period}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="field field-span-2">
@@ -1759,6 +1787,44 @@ function Styles() {
         padding: 0;
         accent-color: var(--brand);
         flex-shrink: 0;
+      }
+
+      .duration-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .duration-row .checkbox-row {
+        flex: 1;
+      }
+
+      .period-switch {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 14px;
+        border: 1px solid #d9e2f0;
+        background: #f6f9ff;
+      }
+
+      .period-btn {
+        min-width: 48px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .period-btn:hover {
+        color: var(--ink);
+      }
+
+      .period-btn.active {
+        background: var(--brand);
+        color: white;
+        box-shadow: 0 4px 10px rgba(29, 78, 216, 0.25);
       }
 
       .checkbox-row span {
