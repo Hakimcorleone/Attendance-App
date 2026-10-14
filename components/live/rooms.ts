@@ -1,10 +1,11 @@
 import { blob, box, iso, poly, shade, tones, type Pt, type RoomGeometry } from "./iso";
 
-export type RoomKind = "office" | "home" | "beach";
+export type RoomKind = "office" | "home" | "beach" | "clinic" | "family";
 export type Facing = "fr" | "fl" | "br" | "bl";
 export type Sky = "day" | "dusk" | "night";
 
-export type Seat = { x: number; y: number; face: Facing; height: number };
+// `for` limits a seat to certain leave types; `rock` makes the sitter sway (rocking chair).
+export type Seat = { x: number; y: number; face: Facing; height: number; for?: string[]; rock?: boolean };
 
 export type Furniture = {
   x: number;
@@ -122,6 +123,14 @@ function windowRight(ctx: CanvasRenderingContext2D, room: Room, x1: number, x2: 
   }
   poly(ctx, wallRight(room, (x1 + x2) / 2 - 0.03, (x1 + x2) / 2 + 0.03, 21, 41), frame);
   poly(ctx, wallRight(room, x1, x2, 30.5, 31.5), frame);
+}
+
+function doorRight(ctx: CanvasRenderingContext2D, room: Room, x: number, color: string) {
+  poly(ctx, wallRight(room, x + 0.08, x + 0.92, 0, 32), shade(color, -0.35));
+  poly(ctx, wallRight(room, x + 0.16, x + 0.84, 0, 29), color);
+  const [kx, ky] = iso(room, x + 0.28, 0, 15);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillRect(kx, ky, 2, 1);
 }
 
 function doorLeft(ctx: CanvasRenderingContext2D, room: Room, y: number, color: string) {
@@ -403,10 +412,250 @@ export function drawBlanket(ctx: CanvasRenderingContext2D, room: Room, x: number
   box(ctx, room, x + 0.78, y + 0.12, 0.1, 0.76, 7 + breathe, 9, tones(shade(blanket, 0.4)));
 }
 
+
+// ---------- beach extras ----------
+
+function hammock(x: number, y: number): Furniture {
+  return {
+    x,
+    y,
+    bias: -0.05,
+    draw(ctx, room, t) {
+      const sway = Math.round(Math.sin(t * 1.3) * 1);
+      for (let i = 0; i <= 12; i += 1) {
+        const f = i / 12;
+        const sag = Math.sin(f * Math.PI) * 6;
+        const [hx, hy] = iso(room, x + 0.5, y - 0.1 + f * 1.2, 14 - sag);
+        ctx.fillStyle = i % 2 ? "#f2766b" : "#f5b83d";
+        ctx.fillRect(Math.round(hx + sway * f), Math.round(hy), 3, 3);
+      }
+    },
+  };
+}
+
+function bench(x: number, y: number): Furniture {
+  const c = tones("#b7794a");
+  return {
+    x,
+    y,
+    bias: -0.05,
+    draw(ctx, room) {
+      box(ctx, room, x + 0.12, y + 0.3, 0.08, 0.5, 6, 0, darkWood);
+      box(ctx, room, x + 0.8, y + 0.3, 0.08, 0.5, 6, 0, darkWood);
+      box(ctx, room, x + 0.08, y + 0.28, 0.84, 0.56, 2, 6, c);
+      box(ctx, room, x + 0.08, y + 0.12, 0.84, 0.12, 12, 6, c);
+    },
+  };
+}
+
+function flowerTree(x: number, y: number): Furniture {
+  return {
+    x,
+    y,
+    draw(ctx, room, t) {
+      box(ctx, room, x + 0.42, y + 0.42, 0.16, 0.16, 22, 0, tones("#a8743f"));
+      const [cx, cy] = iso(room, x + 0.5, y + 0.5, 30);
+      const sway = Math.round(Math.sin(t * 1.1 + 2) * 0.7);
+      blob(ctx, cx + sway, cy, 11, "#3fae5f");
+      blob(ctx, cx - 5 + sway, cy - 5, 7, "#4cc574");
+      blob(ctx, cx + 6 + sway, cy - 3, 6, "#4cc574");
+      [
+        [-6, -2],
+        [3, -8],
+        [7, 2],
+        [-2, 4],
+        [-8, -7],
+      ].forEach(([dx, dy], i) => {
+        ctx.fillStyle = i % 2 ? "#ffffff" : "#f9a8d4";
+        ctx.fillRect(cx + dx + sway, cy + dy, 2, 2);
+      });
+    },
+  };
+}
+
+// ---------- clinic ----------
+
+function cabinet(x: number, y: number): Furniture {
+  return {
+    x,
+    y,
+    draw(ctx, room) {
+      box(ctx, room, x + 0.1, y + 0.1, 0.8, 0.6, 26, 0, tones("#eef2f6"));
+      poly(ctx, [iso(room, x + 0.9, y + 0.15, 24), iso(room, x + 0.9, y + 0.65, 24), iso(room, x + 0.9, y + 0.65, 14), iso(room, x + 0.9, y + 0.15, 14)], "#cfe9f7");
+      ["#e2574c", "#f5b83d", "#2fa36b"].forEach((color, i) => {
+        poly(ctx, [iso(room, x + 0.9, y + 0.2 + i * 0.15, 21), iso(room, x + 0.9, y + 0.3 + i * 0.15, 21), iso(room, x + 0.9, y + 0.3 + i * 0.15, 16), iso(room, x + 0.9, y + 0.2 + i * 0.15, 16)], color);
+      });
+      const [cx, cy] = iso(room, x + 0.9, y + 0.4, 9);
+      ctx.fillStyle = "#e2574c";
+      ctx.fillRect(cx - 1, cy - 3, 2, 6);
+      ctx.fillRect(cx - 3, cy - 1, 6, 2);
+    },
+  };
+}
+
+function waitingChair(x: number, y: number): Furniture {
+  const c = tones("#5fb3a1");
+  return {
+    x,
+    y,
+    bias: -0.05,
+    draw(ctx, room) {
+      box(ctx, room, x + 0.2, y + 0.2, 0.6, 0.6, 5, 0, tones("#9aa3b2"));
+      box(ctx, room, x + 0.18, y + 0.28, 0.64, 0.56, 2, 5, c);
+      box(ctx, room, x + 0.18, y + 0.12, 0.64, 0.14, 12, 5, c);
+    },
+  };
+}
+
+// Heart monitor on the wall behind a bed against the left wall.
+export function drawMonitor(ctx: CanvasRenderingContext2D, room: Room, y: number, t: number) {
+  poly(ctx, [iso(room, 0, y + 0.15, 42), iso(room, 0, y + 0.85, 42), iso(room, 0, y + 0.85, 28), iso(room, 0, y + 0.15, 28)], "#334155");
+  poly(ctx, [iso(room, 0, y + 0.2, 40), iso(room, 0, y + 0.8, 40), iso(room, 0, y + 0.8, 30), iso(room, 0, y + 0.2, 30)], "#0f2a1f");
+  const beat = (t * 1.2) % 1;
+  for (let k = 0; k < 12; k += 1) {
+    const f = k / 11;
+    const spike = Math.abs(f - beat) < 0.05 ? 4 : Math.abs(f - beat) < 0.1 ? -2 : 0;
+    const [px, py] = iso(room, 0, y + 0.22 + f * 0.56, 34 + spike);
+    ctx.fillStyle = "#4ade80";
+    ctx.fillRect(Math.round(px), Math.round(py), 1, 1);
+  }
+}
+
+// IV drip stand at the head of a bed.
+export function drawDrip(ctx: CanvasRenderingContext2D, room: Room, x: number, y: number, t: number) {
+  box(ctx, room, x + 0.12, y + 0.9, 0.06, 0.06, 36, 0, tones("#cbd5e1"));
+  box(ctx, room, x + 0.06, y + 0.86, 0.18, 0.12, 8, 30, tones("#bfe7ff"));
+  const [dx, dy] = iso(room, x + 0.15, y + 0.92, 28);
+  const drop = Math.floor((t * 3) % 1 * 4);
+  ctx.fillStyle = "#7cc8f0";
+  ctx.fillRect(Math.round(dx), Math.round(dy + drop), 1, 1);
+}
+
+// Cold towel on a feverish forehead (head drawn at 2x, centred on px).
+export function drawIcePack(ctx: CanvasRenderingContext2D, px: number, headTop: number) {
+  ctx.fillStyle = "#5aa7d6";
+  ctx.fillRect(Math.round(px - 9), Math.round(headTop + 7), 18, 6);
+  ctx.fillStyle = "#cdeeff";
+  ctx.fillRect(Math.round(px - 8), Math.round(headTop + 8), 16, 4);
+}
+
+// ---------- family ----------
+
+function crib(x: number, y: number): Furniture {
+  const frame = tones("#f3e3c8");
+  return {
+    x,
+    y,
+    draw(ctx, room, t) {
+      box(ctx, room, x + 0.1, y + 0.15, 0.8, 0.7, 6, 2, tones("#ffffff"));
+      // sleeping baby
+      const [bx, by] = iso(room, x + 0.45, y + 0.5, 9);
+      blob(ctx, bx + 3, by - 1, 4, "#f9c9d9");
+      blob(ctx, bx - 3, by - 2, 3, "#f1cfae");
+      // posts, rails and bars
+      [
+        [0.1, 0.15],
+        [0.9, 0.15],
+        [0.9, 0.85],
+        [0.1, 0.85],
+      ].forEach(([px, py]) => box(ctx, room, x + px - 0.03, y + py - 0.03, 0.06, 0.06, 20, 0, frame));
+      box(ctx, room, x + 0.1, y + 0.82, 0.8, 0.04, 2, 18, frame);
+      box(ctx, room, x + 0.87, y + 0.15, 0.04, 0.7, 2, 18, frame);
+      for (let i = 1; i < 5; i += 1) {
+        box(ctx, room, x + 0.1 + i * 0.16, y + 0.83, 0.02, 0.02, 16, 2, frame);
+        box(ctx, room, x + 0.88, y + 0.15 + i * 0.14, 0.02, 0.02, 16, 2, frame);
+      }
+      // spinning mobile
+      const [mx, my] = iso(room, x + 0.5, y + 0.5, 36);
+      ctx.fillStyle = "#9aa3b2";
+      ctx.fillRect(mx, my - 4, 1, 4);
+      ["#f472b6", "#60a5fa", "#facc15"].forEach((color, i) => {
+        const a = t * 1.5 + (i * Math.PI * 2) / 3;
+        ctx.fillStyle = color;
+        ctx.fillRect(Math.round(mx + Math.cos(a) * 7), Math.round(my + 2 + Math.sin(a) * 3), 3, 3);
+      });
+    },
+  };
+}
+
+function rockingChair(x: number, y: number): Furniture {
+  const c = tones("#c98a52");
+  return {
+    x,
+    y,
+    bias: -0.05,
+    draw(ctx, room, t) {
+      const rock = Math.sin(t * 2.5) * 0.04;
+      box(ctx, room, x + 0.18, y + 0.3 + rock, 0.06, 0.6, 2, 0, darkWood);
+      box(ctx, room, x + 0.76, y + 0.3 + rock, 0.06, 0.6, 2, 0, darkWood);
+      box(ctx, room, x + 0.2, y + 0.3 + rock, 0.6, 0.55, 3, 5, c);
+      box(ctx, room, x + 0.2, y + 0.14 + rock, 0.6, 0.14, 16, 5, c);
+      box(ctx, room, x + 0.24, y + 0.32 + rock, 0.52, 0.5, 1, 8, tones("#f9c9d9"));
+    },
+  };
+}
+
+function toyBlocks(x: number, y: number): Furniture {
+  return {
+    x,
+    y,
+    bias: -0.4,
+    draw(ctx, room) {
+      box(ctx, room, x + 0.2, y + 0.3, 0.2, 0.2, 5, 0, tones("#f2766b"));
+      box(ctx, room, x + 0.45, y + 0.4, 0.2, 0.2, 5, 0, tones("#5b8def"));
+      box(ctx, room, x + 0.3, y + 0.35, 0.2, 0.2, 5, 5, tones("#f5b83d"));
+      const [bx, by] = iso(room, x + 0.72, y + 0.7, 3);
+      blob(ctx, bx, by, 3, "#4fbf8b");
+    },
+  };
+}
+
+function teddy(x: number, y: number): Furniture {
+  return {
+    x,
+    y,
+    bias: -0.4,
+    draw(ctx, room) {
+      const [cx, cy] = iso(room, x + 0.5, y + 0.5);
+      blob(ctx, cx, cy - 5, 5, "#b7794a");
+      blob(ctx, cx, cy - 12, 4, "#c98a52");
+      blob(ctx, cx - 4, cy - 15, 2, "#b7794a");
+      blob(ctx, cx + 4, cy - 15, 2, "#b7794a");
+      ctx.fillStyle = "#2b2433";
+      ctx.fillRect(cx - 2, cy - 13, 1, 1);
+      ctx.fillRect(cx + 1, cy - 13, 1, 1);
+      ctx.fillStyle = "#f2766b";
+      ctx.fillRect(cx - 2, cy - 9, 4, 1);
+    },
+  };
+}
+
+// Pram that follows a parent around; (x, y) is its centre in tile units.
+export function drawStroller(ctx: CanvasRenderingContext2D, room: Room, x: number, y: number) {
+  const [sx, sy] = iso(room, x, y);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+  ctx.fillRect(Math.round(sx - 7), Math.round(sy - 1), 14, 2);
+  ctx.fillStyle = "#2b2433";
+  [
+    [-6, -2],
+    [4, -2],
+    [-3, 0],
+    [7, 0],
+  ].forEach(([dx, dy]) => ctx.fillRect(Math.round(sx + dx), Math.round(sy + dy), 3, 3));
+  box(ctx, room, x - 0.22, y - 0.22, 0.44, 0.44, 8, 3, tones("#a5c8f0"));
+  box(ctx, room, x - 0.22, y - 0.22, 0.44, 0.16, 7, 11, tones("#7aa7dc"));
+  const [hx, hy] = iso(room, x + 0.05, y + 0.05, 12);
+  blob(ctx, hx, hy, 2, "#f1cfae");
+}
+
 // ---------- rooms ----------
 
 function finalize(room: Room, blockedTiles: [number, number][]) {
   blockedTiles.forEach(([x, y]) => room.blocked.add(tileKey(x, y)));
+  room.beds.forEach(([x, y]) => {
+    room.blocked.add(tileKey(x, y));
+    room.blocked.add(tileKey(x + 1, y));
+  });
   room.furniture.forEach((f) => {
     if (!room.seats.some((s) => s.x === f.x && s.y === f.y) && (f.bias ?? 0) > -0.3) room.blocked.add(tileKey(f.x, f.y));
   });
@@ -533,6 +782,8 @@ function beachRoom(): Room {
       { x: 3, y: 3, face: "fr", height: 1 },
       { x: 2, y: 4, face: "fl", height: 1 },
       { x: 5, y: 2, face: "fl", height: 1 },
+      { x: 6, y: 2, face: "fl", height: 9, for: ["RL"] },
+      { x: 4, y: 5, face: "fl", height: 8, for: ["CL"] },
     ],
     spots: [
       [1, 1],
@@ -540,13 +791,9 @@ function beachRoom(): Room {
       [5, 1],
       [1, 3],
       [4, 4],
-      [6, 3],
       [2, 2],
     ],
-    beds: [
-      [4, 5],
-      [1, 5],
-    ],
+    beds: [],
     door: [6, 4],
     drawBackground(ctx) {
       drawFloor(ctx, room, "#f5d796", "#f1d08a", "#f8e2b0", "#c99a52");
@@ -582,14 +829,115 @@ function beachRoom(): Room {
     umbrella(2, 3, "#e2574c"),
     umbrella(5, 3, "#2fa36b"),
     palm(6, 1),
+    palm(6, 3),
+    hammock(6, 2),
+    bench(4, 5),
+    flowerTree(3, 5),
     sandcastle(1, 2),
     beachBall(4, 2)
   );
   return finalize(room, water);
 }
 
+function clinicRoom(): Room {
+  const g = geometry(7, 6, 58);
+  const room: Room = {
+    kind: "clinic",
+    ...g,
+    furniture: [],
+    blocked: new Set(),
+    seats: [
+      { x: 5, y: 0, face: "fl", height: 7 },
+      { x: 6, y: 0, face: "fl", height: 7 },
+    ],
+    spots: [
+      [3, 2],
+      [4, 4],
+      [5, 2],
+      [3, 4],
+    ],
+    beds: [
+      [0, 1],
+      [0, 3],
+      [0, 5],
+    ],
+    door: [3, 0],
+    drawBackground(ctx, sky) {
+      drawWalls(ctx, room, 52, "#d8ece7", "#eaf5f2");
+      windowRight(ctx, room, 4.9, 6.4, sky, "#ffffff");
+      // red cross sign
+      poly(ctx, wallRight(room, 1.2, 2.4, 30, 44), "#ffffff");
+      poly(ctx, wallRight(room, 1.7, 1.9, 32, 42), "#e2574c");
+      poly(ctx, wallRight(room, 1.4, 2.2, 35.5, 38.5), "#e2574c");
+      doorRight(ctx, room, 3, "#7fb7a8");
+      drawFloor(ctx, room, "#dff1ec", "#d4ece5", "#eaf7f3", "#8fb8ad");
+    },
+  };
+
+  room.furniture.push(cabinet(1, 0), plant(0, 0), waitingChair(5, 0), waitingChair(6, 0), plant(6, 5));
+  return finalize(room, []);
+}
+
+function familyRoom(): Room {
+  const g = geometry(7, 6, 58);
+  const room: Room = {
+    kind: "family",
+    ...g,
+    furniture: [],
+    blocked: new Set(),
+    seats: [
+      { x: 3, y: 1, face: "fl", height: 9, for: ["ML", "PL"], rock: true },
+      { x: 5, y: 0, face: "fl", height: 7 },
+      { x: 6, y: 0, face: "fl", height: 7 },
+    ],
+    spots: [
+      [2, 3],
+      [4, 3],
+      [5, 5],
+      [3, 5],
+      [1, 2],
+      [6, 2],
+      [2, 1],
+    ],
+    beds: [],
+    door: [0, 4],
+    drawBackground(ctx, sky) {
+      drawWalls(ctx, room, 52, "#f8d7e3", "#dbe9fb");
+      windowRight(ctx, room, 4.9, 6.5, sky, "#ffffff");
+      // stars & moon wall decals
+      [
+        [1.4, 38],
+        [2.2, 31],
+        [2.9, 40],
+      ].forEach(([wy, z]) => {
+        const [sx, sy] = iso(room, 0, wy, z);
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(sx - 1, sy - 2, 2, 5);
+        ctx.fillRect(sx - 2, sy - 1, 4, 2);
+      });
+      doorLeft(ctx, room, 4, "#c9a0dc");
+      drawFloor(ctx, room, "#ecd2ab", "#e6c99f", "#f3dfbf", "#b48a5a");
+      rug(ctx, room, 1.6, 2.4, 3.4, 2.2, "#c7e3d4");
+    },
+  };
+
+  room.furniture.push(
+    crib(1, 0),
+    rockingChair(3, 1),
+    sofa(5, 0, "left", "#a78bfa"),
+    sofa(6, 0, "right", "#a78bfa"),
+    toyBlocks(4, 4),
+    teddy(2, 5),
+    plant(0, 0),
+    lamp(0, 2)
+  );
+  return finalize(room, []);
+}
+
 export function createRoom(kind: RoomKind): Room {
   if (kind === "office") return officeRoom();
   if (kind === "home") return homeRoom();
+  if (kind === "clinic") return clinicRoom();
+  if (kind === "family") return familyRoom();
   return beachRoom();
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { RoomKind, Sky } from "./live/rooms";
 import { Scene, type Occupant } from "./live/scene";
 
@@ -23,38 +23,65 @@ function getSky(hour: number): Sky {
   return "day";
 }
 
+// Which room each leave type is shown in.
+const leaveRooms: { kind: RoomKind; title: string; icon: string; types: string[] }[] = [
+  { kind: "beach", title: "Pantai", icon: "🏖️", types: ["AL", "RL", "CL", "Others"] },
+  { kind: "clinic", title: "Klinik", icon: "🏥", types: ["MC", "HL"] },
+  { kind: "family", title: "Rumah", icon: "🏡", types: ["ML", "PL", "EL"] },
+];
+
+// Canvas widths, so every room renders at the same pixel scale on one row.
+const roomWidths: Record<RoomKind, number> = { office: 252, home: 220, beach: 220, clinic: 220, family: 220 };
+
+function leaveRoomFor(type: string): RoomKind {
+  return leaveRooms.find((room) => room.types.includes(type))?.kind ?? "beach";
+}
+
+function halfDayTag(note: string | null) {
+  const match = note?.match(/^Half day (AM|PM)\b/i);
+  return match ? `½ ${match[1].toUpperCase()}` : undefined;
+}
+
+type CardSpec = { kind: RoomKind; title: string; icon: string; people: Occupant[]; empty: string };
+
 export default function LiveView({ inOffice, wfh, leave, hour }: LiveViewProps) {
   const sky = getSky(hour);
 
+  const cards: CardSpec[] = [
+    { kind: "office", title: "Office", icon: "🏢", people: inOffice.map((name) => ({ name })), empty: "Office kosong… 🦗" },
+    { kind: "home", title: "WFH", icon: "🏠", people: wfh.map((name) => ({ name })), empty: "Semua masuk office 💪" },
+  ];
+
+  // Leave rooms only appear when someone is in them; with nobody on leave, show an empty beach.
+  leaveRooms.forEach((room) => {
+    const people = leave
+      .filter((record) => leaveRoomFor(record.leave_type) === room.kind)
+      .map((record) => ({ name: record.name, leaveType: record.leave_type, tag: halfDayTag(record.note) }));
+    if (people.length) cards.push({ kind: room.kind, title: room.title, icon: room.icon, people, empty: "" });
+  });
+  if (cards.length === 2) {
+    cards.push({ kind: "beach", title: "Cuti", icon: "🌴", people: [], empty: "Takde yang cuti hari ni" });
+  }
+
+  const columns =
+    cards.length <= 3 ? cards.map((card) => `${roomWidths[card.kind]}fr`).join(" ") : cards.length === 4 ? "1fr 1fr" : "repeat(3, 1fr)";
+
   return (
-    <div className={`hv-world sky-${sky}`}>
-      <RoomCard
-        kind="office"
-        title="Office"
-        icon="🏢"
-        sky={sky}
-        people={inOffice.map((name) => ({ name }))}
-        empty="Office kosong… 🦗"
-      />
-      <RoomCard
-        kind="home"
-        title="WFH"
-        icon="🏠"
-        sky={sky}
-        people={wfh.map((name) => ({ name }))}
-        empty="Semua masuk office 💪"
-      />
-      <RoomCard
-        kind="beach"
-        title="Cuti"
-        icon="🌴"
-        sky={sky}
-        people={leave.map((record) => ({ name: record.name, leaveType: record.leave_type }))}
-        empty="Takde yang cuti hari ni"
-      />
+    <div className={`hv-world sky-${sky}`} style={{ "--hv-columns": columns } as CSSProperties}>
+      {cards.map((card) => (
+        <RoomCard key={card.kind} {...card} sky={sky} />
+      ))}
       <LiveViewStyles />
     </div>
   );
+}
+
+function typeSummary(people: Occupant[]) {
+  const counts = new Map<string, number>();
+  people.forEach((p) => {
+    if (p.leaveType) counts.set(p.leaveType, (counts.get(p.leaveType) ?? 0) + 1);
+  });
+  return [...counts.entries()].map(([type, count]) => (count > 1 ? `${type} ×${count}` : type)).join(" · ");
 }
 
 function RoomCard({
@@ -79,7 +106,8 @@ function RoomCard({
   const skyRef = useRef(sky);
   peopleRef.current = people;
   skyRef.current = sky;
-  const peopleKey = people.map((p) => `${p.name}:${p.leaveType ?? ""}`).join("|");
+  const peopleKey = people.map((p) => `${p.name}:${p.leaveType ?? ""}:${p.tag ?? ""}`).join("|");
+  const summary = typeSummary(people);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -155,6 +183,7 @@ function RoomCard({
         <span>
           {icon} {title}
         </span>
+        {summary && <em className="hv-types">{summary}</em>}
         <b>{people.length}</b>
       </header>
       <div className="hv-stage">
@@ -173,7 +202,7 @@ function LiveViewStyles() {
     <style jsx global>{`
       .hv-world {
         display: grid;
-        grid-template-columns: 252fr 220fr 220fr;
+        grid-template-columns: var(--hv-columns, 252fr 220fr 220fr);
         gap: 14px;
         align-items: stretch;
       }
@@ -200,6 +229,18 @@ function LiveViewStyles() {
         font-size: 14px;
         font-weight: 800;
         letter-spacing: 0.01em;
+      }
+
+      .hv-types {
+        margin-left: auto;
+        margin-right: 8px;
+        font-style: normal;
+        font-size: 11px;
+        font-weight: 700;
+        color: #c7d4f7;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .hv-titlebar b {
